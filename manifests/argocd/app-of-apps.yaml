@@ -1,0 +1,28 @@
+# App-of-Apps: ArgoCD watches this folder and manages all service Applications.
+# Apply once to bootstrap: kubectl apply -f manifests/argocd/app-of-apps.yaml -n argocd
+# After that, ArgoCD self-manages every Application defined in this directory.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: app-of-apps
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: toggle-master
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    # Replace with your actual repo URL
+    repoURL: https://github.com/nantius/desafio3-fiap-devops
+    targetRevision: master
+    path: manifests/argocd
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

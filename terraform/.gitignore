@@ -1,0 +1,16 @@
+# Local Terraform state (use remote backend instead)
+*.tfstate
+*.tfstate.*
+.terraform/
+.terraform.lock.hcl
+
+# Variable files that may contain secrets
+terraform.tfvars
+*.auto.tfvars
+
+# Crash log files
+crash.log
+crash.*.log
+
+# Generated plans
+*.tfplan

@@ -1,0 +1,190 @@
+version: '3.8'
+
+services:
+  auth_app:
+    build: ./auth-service/
+    container_name: auth_app
+    restart: always
+    ports:
+      - "8001:8001"
+    environment:
+      - DB_HOST=auth_db
+      - DB_USER=auth_db_user
+      - DB_PORT=5432
+      - DB_NAME=auth_db
+      - DB_PASS=auth_db_password
+      - SSL_MODE=disable
+      - MASTER_KEY=admin-secreto-123
+    depends_on:
+      - auth_db
+    networks:
+      - app_network
+  
+  flag_app:
+    build: ./flag-service/
+    container_name: flag_app
+    restart: always
+    ports:
+      - "8002:8002"
+    environment:
+      - DB_HOST=flag_db
+      - DB_USER=flag_db_user
+      - DB_PORT=5432
+      - DB_NAME=flag_db
+      - DB_PASS=flag_db_password
+      - SSL_MODE=disable
+      - AUTH_SERVICE_URL=http://auth_app:8001
+    depends_on:
+      - auth_app
+      - flag_db
+    networks:
+      - app_network
+
+  targeting_app:
+    build: ./targeting-service/
+    container_name: targeting_app
+    restart: always
+    ports:
+      - "8003:8003"
+    environment:
+      - DB_HOST=targeting_db
+      - DB_USER=targeting_db_user
+      - DB_PORT=5432
+      - DB_NAME=targeting_db
+      - DB_PASS=targeting_db_password
+      - SSL_MODE=disable
+      - AUTH_SERVICE_URL=http://auth_app:8001
+    depends_on:
+      - auth_app
+      - targeting_db
+    networks:
+      - app_network
+  
+  evaluation_app: 
+    build: ./evaluation-service/
+    container_name: evaluation_app
+    restart: always
+    ports:
+      - "8004:8004"
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - AUTH_SERVICE_URL=http://auth_app:8001
+      - FLAG_SERVICE_URL=http://flag_app:8002
+      - TARGETING_SERVICE_URL=http://targeting_app:8003
+      - AWS_REGION=us-east-1
+      - SERVICE_API_KEY=tm_key_787c7eff3c2c9e857a55291e0f91da18e0eebc5aa01e80b83eeb751d0a4f3834
+      - AWS_SQS_URL=https://sqs.us-east-1.amazonaws.com/278375639105/evaluation_service_queue
+      - AWS_ACCESS_KEY_ID=
+      - AWS_SECRET_ACCESS_KEY=
+      - PORT=8004
+    depends_on:
+      - auth_app
+      - targeting_app
+      - flag_app
+    networks:
+      - app_network
+
+  analytics_app:
+    build: ./analytics-service/
+    container_name: analytics_app
+    restart: always
+    ports:
+      - "8005:8005"
+    environment:
+      - AWS_REGION=us-east-1
+      - AWS_SQS_URL=https://sqs.us-east-1.amazonaws.com/278375639105/evaluation_service_queue
+      - AWS_ACCESS_KEY_ID=
+      - AWS_SECRET_ACCESS_KEY=
+      - AWS_DYNAMODB_TABLE=ToggleMasterAnalytics
+      - USE_LOCAL_DYNAMO=true
+      - LOCAL_DYNAMO_URL=http://dynamo:8000
+      - PORT=8005
+    depends_on:
+      - evaluation_app
+    networks:
+      - app_network
+
+  flag_db:
+    build: ./flag-service/db
+    container_name: flag_db
+    restart: always
+    environment:
+      POSTGRES_USER: flag_db_user
+      POSTGRES_PASSWORD: flag_db_password
+      POSTGRES_DB: flag_db
+    volumes:
+      - flag_db_data:/var/lib/postgresql
+    networks:
+      - app_network
+    ports:
+      - 5434:5432
+  
+  targeting_db:
+    build: ./targeting-service/db
+    container_name: targeting_db
+    restart: always
+    environment:
+      POSTGRES_USER: targeting_db_user
+      POSTGRES_PASSWORD: targeting_db_password
+      POSTGRES_DB: targeting_db
+    volumes:
+      - targeting_db_data:/var/lib/postgresql
+    networks:
+      - app_network
+    ports:
+      - 5433:5432
+
+  auth_db:
+    build: ./auth-service/db
+    container_name: auth_db
+    restart: always
+    environment:
+      POSTGRES_USER: auth_db_user
+      POSTGRES_PASSWORD: auth_db_password
+      POSTGRES_DB: auth_db
+    volumes:
+      - auth_db_data:/var/lib/postgresql
+    networks:
+      - app_network
+    ports:
+      - 5432:5432
+
+  redis:
+    image: redis:latest
+    container_name: redis
+    restart: always
+    networks:
+      - app_network
+    ports:
+      - 6379:6379
+
+  dynamo:
+    image: amazon/dynamodb-local
+    container_name: dynamo
+    restart: always
+    networks:
+      - app_network
+    ports:
+      - 8000:8000
+
+  # pgadmin:
+  #   image: dpage/pgadmin4
+  #   container_name: pgadmin
+  #   environment:
+  #     PGADMIN_DEFAULT_EMAIL: admin@admin.com
+  #     PGADMIN_DEFAULT_PASSWORD: admin123
+  #   ports:
+  #     - "8080:80"
+  #   networks:
+  #     - app_network
+
+
+volumes:
+  flag_db_data:
+  targeting_db_data:
+  auth_db_data:
+
+networks:
+  app_network:
+    driver: bridge
+

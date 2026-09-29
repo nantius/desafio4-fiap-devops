@@ -1,0 +1,32 @@
+name: evaluation-service CI/CD
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [master]
+    tags: ["v*.*.*"]
+    paths:
+      - "evaluation-service/**"
+      - ".github/workflows/evaluation-service.yml"
+      - ".github/workflows/reusable-go.yml"
+  pull_request:
+    branches: [master]
+    paths:
+      - "evaluation-service/**"
+      - ".github/workflows/evaluation-service.yml"
+      - ".github/workflows/reusable-go.yml"
+
+jobs:
+  pipeline:
+    uses: ./.github/workflows/reusable-go.yml
+    permissions:
+      id-token: write
+      contents: write
+    with:
+      service: evaluation-service
+      ecr_repository: evaluation-service
+      binary_name: evaluation-service
+    secrets:
+      AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
+      AWS_REGION: ${{ secrets.AWS_REGION }}
+      AWS_ROLE_ARN: ${{ secrets.AWS_ROLE_ARN }}

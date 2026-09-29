@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: auth-service-config
+  namespace: auth-service
+data:
+  DB_HOST: "toggle-master-prod-auth-service.c6r0uui6ywbl.us-east-1.rds.amazonaws.com"
+  DB_PORT: "5432"
+  DB_NAME: "auth_db"
+  SSL_MODE: "require"

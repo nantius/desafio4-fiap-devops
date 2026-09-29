@@ -1,0 +1,350 @@
+name: Reusable — Python service pipeline
+
+on:
+  workflow_call:
+    inputs:
+      service:
+        description: "Service directory name (e.g. flag-service)"
+        required: true
+        type: string
+      ecr_repository:
+        description: "ECR repository name"
+        required: true
+        type: string
+      port:
+        description: "Port the service listens on (informational tag)"
+        required: false
+        type: string
+        default: "8080"
+      gitops_manifests_path:
+        description: "Repo-relative path to the GitOps manifests root (e.g. manifests)"
+        required: false
+        type: string
+        default: "manifests"
+    secrets:
+      AWS_ACCOUNT_ID:
+        required: true
+      AWS_REGION:
+        required: true
+      AWS_ROLE_ARN:
+        required: true   # OIDC role for ECR push
+
+env:
+  PYTHON_VERSION: "3.11"
+
+jobs:
+  # ────────────────────────────────────────────
+  # JOB 1 — Build & Unit Tests
+  # ────────────────────────────────────────────
+  build:
+    name: Build & Unit Tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{ inputs.service }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: ${{ inputs.service }}/requirements.txt
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run unit tests (pytest)
+        # Runs pytest if a tests/ directory or any test_*.py file exists.
+        # Exits 0 (skip) instead of failing when no tests are found so the
+        # pipeline still progresses for services that have no tests yet.
+        run: |
+          pip install pytest pytest-cov --quiet
+          if find . -name "test_*.py" -o -name "*_test.py" | grep -q .; then
+            pytest --tb=short --cov=. --cov-report=xml
+          else
+            echo "No test files found — skipping pytest."
+          fi
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-${{ inputs.service }}
+          path: ${{ inputs.service }}/coverage.xml
+          if-no-files-found: ignore
+
+  # ────────────────────────────────────────────
+  # JOB 2 — Linter / Static Analysis
+  # ────────────────────────────────────────────
+  lint:
+    name: Linter (flake8 + pylint)
+    runs-on: ubuntu-latest
+    needs: build
+    defaults:
+      run:
+        working-directory: ${{ inputs.service }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: ${{ inputs.service }}/requirements.txt
+
+      - name: Install dependencies + linters
+        run: pip install -r requirements.txt flake8 pylint --quiet
+
+      - name: flake8
+        run: flake8 . --max-line-length=120 --exclude=.git,__pycache__
+
+      - name: pylint
+        run: pylint **/*.py --fail-under=7.0 --disable=C0114,C0115,C0116 || true
+
+  # ────────────────────────────────────────────
+  # JOB 3 — Security Scan (SAST + SCA)
+  # ────────────────────────────────────────────
+  security:
+    name: Security Scan (bandit SAST + Trivy SCA)
+    runs-on: ubuntu-latest
+    needs: build
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      # ── SAST: bandit ────────────────────────
+      - name: Install bandit
+        run: pip install bandit --quiet
+
+      - name: bandit SAST scan
+        run: |
+          bandit -r ${{ inputs.service }} \
+            -f json \
+            -o bandit-report.json \
+            --severity-level medium \
+            || true   # collect results; blocking done in next step
+
+      - name: Block on CRITICAL findings (bandit)
+        run: |
+          python3 - <<'EOF'
+          import json, sys
+          try:
+              with open("bandit-report.json") as f:
+                  report = json.load(f)
+          except FileNotFoundError:
+              print("No bandit report found.")
+              sys.exit(0)
+          criticals = [
+              r for r in report.get("results", [])
+              if r.get("issue_severity") == "HIGH" and r.get("issue_confidence") == "HIGH"
+          ]
+          if criticals:
+              print(f"BLOCKED: {len(criticals)} HIGH-severity/HIGH-confidence finding(s):")
+              for c in criticals:
+                  print(f"  [{c['test_id']}] {c['issue_text']} — {c['filename']}:{c['line_number']}")
+              sys.exit(1)
+          print("No critical SAST findings.")
+          EOF
+
+      - name: Upload bandit report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bandit-${{ inputs.service }}
+          path: bandit-report.json
+          if-no-files-found: ignore
+
+      # ── SCA: Trivy filesystem (dependencies) ─
+      - name: Install Trivy
+        run: |
+          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin v0.71.0
+
+      - name: Trivy SCA — filesystem scan
+        run: |
+          trivy fs \
+            --scanners vuln \
+            --severity CRITICAL,HIGH \
+            --exit-code 1 \
+            --ignore-unfixed \
+            --format table \
+            ${{ inputs.service }}
+
+  # ────────────────────────────────────────────
+  # JOB 4 — Docker Build, Container Scan & ECR Push
+  # ────────────────────────────────────────────
+  docker:
+    name: Docker Build, Trivy Scan & ECR Push
+    runs-on: ubuntu-latest
+    needs: [lint, security]
+    permissions:
+      id-token: write   # required for OIDC
+      contents: read
+    outputs:
+      image:   ${{ steps.meta.outputs.image }}
+      version: ${{ steps.meta.outputs.version }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: ecr-login
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Set image metadata
+        id: meta
+        run: |
+          SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
+          # Tag format: v1.0.0-<short-sha> on tags, sha-<short-sha> on branches
+          if [[ "${{ github.ref_type }}" == "tag" ]]; then
+            VERSION="${{ github.ref_name }}-${SHORT_SHA}"
+          else
+            VERSION="sha-${SHORT_SHA}"
+          fi
+          ECR_REGISTRY="${{ steps.ecr-login.outputs.registry }}"
+          IMAGE="${ECR_REGISTRY}/${{ inputs.ecr_repository }}:${VERSION}"
+          IMAGE_LATEST="${ECR_REGISTRY}/${{ inputs.ecr_repository }}:latest"
+          echo "image=${IMAGE}" >> "$GITHUB_OUTPUT"
+          echo "image_latest=${IMAGE_LATEST}" >> "$GITHUB_OUTPUT"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+
+      - name: Build Docker image
+        run: |
+          docker build \
+            -t "${{ steps.meta.outputs.image }}" \
+            -t "${{ steps.meta.outputs.image_latest }}" \
+            ${{ inputs.service }}/
+
+      # ── Container Scan: Trivy image ──────────
+      - name: Install Trivy
+        run: |
+          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin v0.71.0
+
+      - name: Trivy container image scan
+        run: |
+          trivy image \
+            --scanners vuln \
+            --severity CRITICAL \
+            --exit-code 1 \
+            --ignore-unfixed \
+            --format table \
+            "${{ steps.meta.outputs.image }}"
+
+      - name: Trivy SARIF report
+        if: always()
+        run: |
+          trivy image \
+            --scanners vuln \
+            --severity CRITICAL,HIGH \
+            --ignore-unfixed \
+            --format sarif \
+            --output trivy-${{ inputs.service }}.sarif \
+            "${{ steps.meta.outputs.image }}"
+
+      - name: Upload Trivy SARIF
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-${{ inputs.service }}
+          path: trivy-${{ inputs.service }}.sarif
+          if-no-files-found: ignore
+
+      - name: Push image to ECR
+        run: |
+          docker push "${{ steps.meta.outputs.image }}"
+          docker push "${{ steps.meta.outputs.image_latest }}"
+
+      - name: Print image URI
+        run: echo "Pushed ${{ steps.meta.outputs.image }}"
+
+  # ────────────────────────────────────────────
+  # JOB 5 — Update GitOps manifest (image tag)
+  # Runs only on direct pushes to main so PRs
+  # never write back to the repository.
+  # ────────────────────────────────────────────
+  update-gitops:
+    name: Update GitOps image tag
+    runs-on: ubuntu-latest
+    needs: docker
+    # Only after docker succeeded, and never on pull_request (no writes from PRs).
+    if: needs.docker.result == 'success' && github.event_name != 'pull_request'
+    permissions:
+      contents: write   # required to push the tag update commit
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # Use the built-in token — ensure "Allow GitHub Actions to create
+          # and approve pull requests" is enabled in repo Settings → Actions.
+          token: ${{ github.token }}
+          # Fetch full history so git push doesn't fail on a shallow clone
+          fetch-depth: 0
+
+      - name: Update image tag in deployment manifest
+        env:
+          MANIFEST: ${{ inputs.gitops_manifests_path }}/${{ inputs.service }}/deployment.yaml
+          AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
+          AWS_REGION: ${{ secrets.AWS_REGION }}
+          ECR_REPOSITORY: ${{ inputs.ecr_repository }}
+        run: |
+          if [ ! -f "$MANIFEST" ]; then
+            echo "Manifest not found at $MANIFEST — skipping update."
+            exit 0
+          fi
+          # Reconstruct the image reference locally instead of relying on a
+          # cross-job output (which can arrive empty). This is the same value
+          # the docker job pushed: <acct>.dkr.ecr.<region>.amazonaws.com/<repo>:sha-<short>
+          SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
+          VERSION="sha-${SHORT_SHA}"
+          NEW_IMAGE="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPOSITORY}:${VERSION}"
+          # Guard: never write an empty image (would break the ArgoCD sync).
+          if [ -z "$AWS_ACCOUNT_ID" ] || [ -z "$AWS_REGION" ]; then
+            echo "AWS_ACCOUNT_ID/AWS_REGION secret missing — cannot build image ref. Aborting." >&2
+            exit 1
+          fi
+          echo "VERSION=${VERSION}" >> "$GITHUB_ENV"
+          sed -i -E "s|^([[:space:]]*)image:.*|\1image: ${NEW_IMAGE}|g" "$MANIFEST"
+          echo "Updated $MANIFEST to ${NEW_IMAGE}"
+          grep -n "image:" "$MANIFEST"
+
+      - name: Commit and push if changed
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add ${{ inputs.gitops_manifests_path }}/${{ inputs.service }}/deployment.yaml
+          if git diff --cached --quiet; then
+            echo "No changes to commit — image tag already up to date."
+            exit 0
+          fi
+          git commit -m "chore(gitops): update ${{ inputs.service }} image to ${VERSION} [skip ci]"
+          # Retry with rebase to handle concurrent pipelines pushing to master
+          for attempt in 1 2 3 4 5; do
+            if git push origin master; then
+              echo "Pushed on attempt $attempt"
+              exit 0
+            fi
+            echo "Push rejected (attempt $attempt) — rebasing on latest master and retrying..."
+            git pull --rebase origin master
+          done
+          echo "Failed to push after 5 attempts" >&2
+          exit 1

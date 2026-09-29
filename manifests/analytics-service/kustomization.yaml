@@ -1,0 +1,19 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# ArgoCD uses this file to discover and order resources in this folder.
+# The deployment.yaml image tag is updated by the CI update-gitops job
+# after each successful ECR push.
+# triggerAuthentication.yaml and scaledobject.yaml require KEDA to be
+# installed on the cluster before ArgoCD syncs this Application.
+
+resources:
+  - namespace.yaml
+  - service-account.yaml
+  - configmap.yaml
+  - secret.yaml
+  - deployment.yaml
+  - service.yaml
+  - ingress.yaml
+  - triggerAuthentication.yaml
+  - scaledobject.yaml

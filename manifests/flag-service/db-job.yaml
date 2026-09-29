@@ -1,0 +1,57 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: init-flag-db
+  namespace: flag-service
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+spec:
+  backoffLimit: 3
+  template:
+    spec:
+      containers:
+        - name: init-db
+          image: postgres:15
+          command: ["psql"]
+          args:
+            - "-v"
+            - "ON_ERROR_STOP=1"
+            - "-f"
+            - "/init/init.sql"
+          env:
+            - name: PGHOST
+              valueFrom:
+                configMapKeyRef:
+                  name: flag-service-config
+                  key: DB_HOST
+            - name: PGPORT
+              valueFrom:
+                configMapKeyRef:
+                  name: flag-service-config
+                  key: DB_PORT
+            - name: PGDATABASE
+              valueFrom:
+                configMapKeyRef:
+                  name: flag-service-config
+                  key: DB_NAME
+            - name: PGUSER
+              valueFrom:
+                secretKeyRef:
+                  name: flag-service-secret
+                  key: DB_USER
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: flag-service-secret
+                  key: DB_PASS
+            - name: PGSSLMODE
+              value: "require"
+          volumeMounts:
+            - name: init-sql
+              mountPath: /init
+      restartPolicy: Never
+      volumes:
+        - name: init-sql
+          configMap:
+            name: flag-db-init-sql

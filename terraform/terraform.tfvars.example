@@ -1,0 +1,78 @@
+# Copy this file to terraform.tfvars and fill in real values.
+# terraform.tfvars is git-ignored — never commit passwords or secrets.
+
+# ── Global ───────────────────────────────────
+region      = "us-east-1"
+project     = "toggle-master"
+environment = "prod"
+
+tags = {
+  Team      = "platform"
+  CostCenter = "engineering"
+}
+
+# ── VPC ──────────────────────────────────────
+vpc_cidr             = "10.0.0.0/16"
+availability_zones   = ["us-east-1a", "us-east-1b", "us-east-1c"]
+public_subnet_cidrs  = ["10.0.1.0/24", "10.0.2.0/24", "10.0.3.0/24"]
+private_subnet_cidrs = ["10.0.11.0/24", "10.0.12.0/24", "10.0.13.0/24"]
+
+# ── GitHub Actions ────────────────────────────
+github_org  = "your-github-username-or-org"
+github_repo = "FIAP-devops"
+
+# ── EKS ──────────────────────────────────────
+cluster_name        = "toggle"
+kubernetes_version  = "1.29"
+node_instance_types = ["t3.large"]
+node_desired_size   = 1
+node_min_size       = 1
+node_max_size       = 3
+
+# ── RDS ──────────────────────────────────────
+rds_instance_class      = "db.t3.micro"
+rds_multi_az            = false
+rds_deletion_protection = true
+rds_skip_final_snapshot = false   # set true only for dev/test
+
+rds_databases = {
+  "auth-service" = {
+    db_name  = "auth_db"
+    username = "auth_user"
+    password = "REPLACE_WITH_STRONG_PASSWORD"
+  }
+  "flag-service" = {
+    db_name  = "flag_db"
+    username = "flag_user"
+    password = "REPLACE_WITH_STRONG_PASSWORD"
+  }
+  "targeting-service" = {
+    db_name  = "targeting_db"
+    username = "targeting_user"
+    password = "REPLACE_WITH_STRONG_PASSWORD"
+  }
+}
+
+# ── ElastiCache ───────────────────────────────
+redis_node_type          = "cache.t3.micro"
+redis_num_cache_clusters = 1
+
+# ── DynamoDB ─────────────────────────────────
+dynamodb_table_name = "ToggleMasterAnalytics"
+
+# ── SQS ──────────────────────────────────────
+sqs_queue_name = "evaluation_service_queue"
+
+
+
+
+# ── ArgoCD ────────────────────────────────────
+# HTTPS URL of the repo that holds your GitOps manifests.
+# If the repo is public no further config is needed.
+# For private repos see the ArgoCD docs on repo credentials.
+tfstate_bucket_name = "nantius-toggle-master-tfstate"
+
+gitops_repo_url    = "https://github.com/nantius/desafio3-fiap-devops"
+gitops_repo_branch = "main"
+
+# argocd_chart_version = "7.4.4"   # pin to a specific chart version if needed

@@ -1,0 +1,14 @@
+# Compiled Go binaries (named after their service directory)
+auth-service/auth-service
+evaluation-service/evaluation-service
+
+# Go build/test artifacts
+*.out
+coverage.out
+
+# Local temp scripts
+_*.sh
+
+# Env files
+*.env
+.env

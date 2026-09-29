@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: flag-service-config
+  namespace: flag-service
+data:
+  AUTH_SERVICE_URL: "http://a1b59bfacc7ce4b3c929f24e0129b6b4-34f7427456c48fde.elb.us-east-1.amazonaws.com/auth"
+  DB_HOST: "toggle-master-prod-flag-service.c6r0uui6ywbl.us-east-1.rds.amazonaws.com"
+  DB_PORT: "5432"
+  DB_NAME: "flag_db"
+  SSL_MODE: "require"

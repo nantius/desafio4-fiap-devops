@@ -1,0 +1,32 @@
+name: flag-service CI/CD
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [master]
+    tags: ["v*.*.*"]
+    paths:
+      - "flag-service/**"
+      - ".github/workflows/flag-service.yml"
+      - ".github/workflows/reusable-python.yml"
+  pull_request:
+    branches: [master]
+    paths:
+      - "flag-service/**"
+      - ".github/workflows/flag-service.yml"
+      - ".github/workflows/reusable-python.yml"
+
+jobs:
+  pipeline:
+    uses: ./.github/workflows/reusable-python.yml
+    permissions:
+      id-token: write
+      contents: write
+    with:
+      service: flag-service
+      ecr_repository: flag-service
+      port: "8002"
+    secrets:
+      AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
+      AWS_REGION: ${{ secrets.AWS_REGION }}
+      AWS_ROLE_ARN: ${{ secrets.AWS_ROLE_ARN }}

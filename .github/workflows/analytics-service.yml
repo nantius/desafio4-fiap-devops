@@ -1,0 +1,32 @@
+name: analytics-service CI/CD
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [master]
+    tags: ["v*.*.*"]
+    paths:
+      - "analytics-service/**"
+      - ".github/workflows/analytics-service.yml"
+      - ".github/workflows/reusable-python.yml"
+  pull_request:
+    branches: [master]
+    paths:
+      - "analytics-service/**"
+      - ".github/workflows/analytics-service.yml"
+      - ".github/workflows/reusable-python.yml"
+
+jobs:
+  pipeline:
+    uses: ./.github/workflows/reusable-python.yml
+    permissions:
+      id-token: write
+      contents: write
+    with:
+      service: analytics-service
+      ecr_repository: analytics-service
+      port: "8005"
+    secrets:
+      AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
+      AWS_REGION: ${{ secrets.AWS_REGION }}
+      AWS_ROLE_ARN: ${{ secrets.AWS_ROLE_ARN }}
