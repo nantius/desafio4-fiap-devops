@@ -29,17 +29,6 @@ variable "cluster_ca_certificate" {
   sensitive   = true
 }
 
-variable "keda_chart_version" {
-  description = "KEDA Helm chart version to install"
-  type        = string
-  default     = "2.15.1"
-}
-
-variable "keda_operator_role_arn" {
-  description = "IRSA role ARN to annotate on the keda-operator service account (for SQS scaler auth)"
-  type        = string
-}
-
 variable "nginx_ingress_chart_version" {
   description = "ingress-nginx Helm chart version to install"
   type        = string

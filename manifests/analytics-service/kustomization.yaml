@@ -4,8 +4,10 @@ kind: Kustomization
 # ArgoCD uses this file to discover and order resources in this folder.
 # The deployment.yaml image tag is updated by the CI update-gitops job
 # after each successful ECR push.
-# triggerAuthentication.yaml and scaledobject.yaml require KEDA to be
-# installed on the cluster before ArgoCD syncs this Application.
+#
+# AWS Academy: KEDA (triggerAuthentication.yaml + scaledobject.yaml) was
+# replaced by a CPU-based HorizontalPodAutoscaler (hpa.yaml), since the KEDA
+# SQS scaler requires IRSA which is unavailable on the lab account.
 
 resources:
   - namespace.yaml
@@ -15,5 +17,4 @@ resources:
   - deployment.yaml
   - service.yaml
   - ingress.yaml
-  - triggerAuthentication.yaml
-  - scaledobject.yaml
+  - hpa.yaml

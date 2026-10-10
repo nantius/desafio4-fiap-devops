@@ -18,7 +18,7 @@ spec:
       serviceAccountName: targeting-service-sa   
       containers:
         - name: targeting-service
-          image: 052058222675.dkr.ecr.us-east-1.amazonaws.com/targeting-service:sha-0f33ed0
+          image: 670047672777.dkr.ecr.us-east-1.amazonaws.com/targeting-service:sha-0f33ed0
           ports:
             - containerPort: 8003
           livenessProbe:

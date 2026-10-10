@@ -25,8 +25,8 @@ terraform {
   }
 
   backend "s3" {
-    bucket         = "nantius-toggle-master-tfstate"
-    key            = "desafio3/terraform.tfstate"
+    bucket         = "nantius-toggle-master-tfstate-desafio4"
+    key            = "desafio4/terraform.tfstate"
     region         = "us-east-1"
     encrypt        = true
     dynamodb_table = "toggle-master-tfstate-lock"

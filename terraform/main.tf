@@ -11,6 +11,16 @@ provider "aws" {
 }
 
 # ─────────────────────────────────────────────
+# AWS Academy LabRole
+# Looked up (never created) and reused everywhere an
+# IAM role is required: EKS cluster/node group and the
+# SQS queue policy principal.
+# ─────────────────────────────────────────────
+data "aws_iam_role" "lab" {
+  name = var.lab_role_name
+}
+
+# ─────────────────────────────────────────────
 # Helm & Kubernetes providers
 # Both are configured after EKS is created so
 # they can authenticate against the cluster.
@@ -70,13 +80,13 @@ module "vpc" {
 module "eks" {
   source = "./modules/eks"
 
-  project             = var.project
-  environment         = var.environment
-  cluster_name        = var.cluster_name
-  kubernetes_version  = var.kubernetes_version
-  vpc_id              = module.vpc.vpc_id
-  public_subnet_ids   = module.vpc.public_subnet_ids
-  private_subnet_ids  = module.vpc.private_subnet_ids
+  project            = var.project
+  environment        = var.environment
+  cluster_name       = var.cluster_name
+  kubernetes_version = var.kubernetes_version
+  vpc_id             = module.vpc.vpc_id
+  public_subnet_ids  = module.vpc.public_subnet_ids
+  private_subnet_ids = module.vpc.private_subnet_ids
 
   node_group_name     = var.node_group_name
   node_instance_types = var.node_instance_types
@@ -85,7 +95,10 @@ module "eks" {
   node_desired_size   = var.node_desired_size
   node_min_size       = var.node_min_size
   node_max_size       = var.node_max_size
-  tags                = var.tags
+
+  # AWS Academy: reuse the existing LabRole for the cluster + node group
+  lab_role_name = var.lab_role_name
+  tags          = var.tags
 }
 
 # ─────────────────────────────────────────────
@@ -187,35 +200,22 @@ module "sqs" {
   max_receive_count             = var.sqs_max_receive_count
   dlq_message_retention_seconds = var.sqs_dlq_message_retention_seconds
 
-  # Wire IRSA role ARNs after IAM module runs
-  producer_role_arns = [module.iam.role_arns["evaluation-service"]]
-  consumer_role_arns = [module.iam.role_arns["analytics-service"]]
+  # AWS Academy: no IRSA roles. Both producer (evaluation-service) and
+  # consumer (analytics-service) pods run under the node's LabRole, so the
+  # queue policy grants access to LabRole.
+  producer_role_arns = [data.aws_iam_role.lab.arn]
+  consumer_role_arns = [data.aws_iam_role.lab.arn]
   tags               = var.tags
 }
 
 # ─────────────────────────────────────────────
-# IAM / IRSA  (one role per service)
-# Depends on EKS (OIDC), SQS, and DynamoDB
+# IAM / IRSA
+#
+# REMOVED for AWS Academy: the lab account cannot create IAM roles or
+# policies. Per-service IRSA roles, the KEDA operator role, and the
+# GitHub Actions OIDC role are all gone. Services use the node's LabRole
+# for AWS access; CI authenticates with temporary Lab credentials.
 # ─────────────────────────────────────────────
-module "iam" {
-  source = "./modules/iam"
-
-  project           = var.project
-  environment       = var.environment
-  region            = var.region
-  oidc_provider_arn = module.eks.oidc_provider_arn
-  oidc_provider_url = module.eks.oidc_provider_url
-  service_accounts  = var.service_accounts
-  sqs_queue_arn     = module.sqs.queue_arn
-  dynamodb_table_arn = module.dynamodb.table_arn
-
-  github_org              = var.github_org
-  github_repo             = var.github_repo
-  ecr_repository_names    = var.ecr_repository_names
-  tfstate_bucket_name     = var.tfstate_bucket_name
-  tfstate_lock_table_name = var.tfstate_lock_table_name
-  tags                    = var.tags
-}
 
 # ─────────────────────────────────────────────
 # ArgoCD  (Helm install + Application CRs)
@@ -234,8 +234,6 @@ module "argocd" {
 
   argocd_namespace     = var.argocd_namespace
   argocd_chart_version = var.argocd_chart_version
-
-  keda_operator_role_arn = module.iam.keda_operator_role_arn
 
   gitops_repo_url       = var.gitops_repo_url
   gitops_repo_branch    = var.gitops_repo_branch

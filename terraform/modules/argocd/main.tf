@@ -34,32 +34,14 @@ resource "kubernetes_namespace" "argocd" {
 }
 
 # ─────────────────────────────────────────────
-# KEDA — Kubernetes Event-driven Autoscaling
-# Used by analytics-service to scale based on
-# SQS queue depth (ScaledObject + TriggerAuthentication).
-# Must be installed before ArgoCD syncs analytics-service.
+# KEDA — REMOVED for AWS Academy
+#
+# KEDA's SQS scaler requires IRSA (an IAM role for the
+# keda-operator service account), which cannot be created
+# on the lab account. analytics-service now scales via a
+# CPU-based HorizontalPodAutoscaler (manifests/analytics-service/hpa.yaml)
+# instead — the documented Academy workaround.
 # ─────────────────────────────────────────────
-resource "helm_release" "keda" {
-  name       = "keda"
-  repository = "https://kedacore.github.io/charts"
-  chart      = "keda"
-  version    = var.keda_chart_version
-  namespace  = "keda"
-
-  create_namespace = true
-  wait             = true
-  timeout          = 300
-
-  # Annotate the keda-operator service account with the IRSA role so the
-  # operator can assume AWS credentials (used by the SQS scaler for
-  # analytics-service via TriggerAuthentication identityOwner: operator).
-  set {
-    name  = "serviceAccount.operator.annotations.eks\\.amazonaws\\.com/role-arn"
-    value = var.keda_operator_role_arn
-  }
-
-  depends_on = [kubernetes_namespace.argocd]
-}
 
 # ─────────────────────────────────────────────
 # NGINX Ingress Controller
@@ -167,11 +149,11 @@ resource "helm_release" "argocd" {
 resource "null_resource" "argocd_apps" {
   # Re-run whenever the set of services or repo config changes
   triggers = {
-    services      = jsonencode(var.services)
-    repo_url      = var.gitops_repo_url
-    repo_branch   = var.gitops_repo_branch
+    services       = jsonencode(var.services)
+    repo_url       = var.gitops_repo_url
+    repo_branch    = var.gitops_repo_branch
     manifests_path = var.gitops_manifests_path
-    cluster_name  = var.cluster_name
+    cluster_name   = var.cluster_name
   }
 
   provisioner "local-exec" {

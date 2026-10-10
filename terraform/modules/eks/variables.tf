@@ -13,6 +13,13 @@ variable "cluster_name" {
   type        = string
 }
 
+# ── AWS Academy / LabRole ────────────────────
+variable "lab_role_name" {
+  description = "Name of the pre-existing IAM role (LabRole) reused for the EKS control plane and node group. Required on AWS Academy where new IAM roles cannot be created."
+  type        = string
+  default     = "LabRole"
+}
+
 variable "kubernetes_version" {
   description = "Kubernetes version for the EKS cluster"
   type        = string

@@ -17,10 +17,6 @@ availability_zones   = ["us-east-1a", "us-east-1b", "us-east-1c"]
 public_subnet_cidrs  = ["10.0.1.0/24", "10.0.2.0/24", "10.0.3.0/24"]
 private_subnet_cidrs = ["10.0.11.0/24", "10.0.12.0/24", "10.0.13.0/24"]
 
-# ── GitHub Actions ────────────────────────────
-github_org  = "your-github-username-or-org"
-github_repo = "FIAP-devops"
-
 # ── EKS ──────────────────────────────────────
 cluster_name        = "toggle"
 kubernetes_version  = "1.29"
@@ -28,6 +24,10 @@ node_instance_types = ["t3.large"]
 node_desired_size   = 1
 node_min_size       = 1
 node_max_size       = 3
+
+# AWS Academy: name of the pre-existing LabRole reused for EKS + SQS access.
+# Default is "LabRole"; override only if your lab uses a different name.
+# lab_role_name = "LabRole"
 
 # ── RDS ──────────────────────────────────────
 rds_instance_class      = "db.t3.micro"
@@ -70,9 +70,7 @@ sqs_queue_name = "evaluation_service_queue"
 # HTTPS URL of the repo that holds your GitOps manifests.
 # If the repo is public no further config is needed.
 # For private repos see the ArgoCD docs on repo credentials.
-tfstate_bucket_name = "nantius-toggle-master-tfstate"
-
-gitops_repo_url    = "https://github.com/nantius/desafio3-fiap-devops"
+gitops_repo_url    = "https://github.com/nantius/desafio4-fiap-devops"
 gitops_repo_branch = "main"
 
 # argocd_chart_version = "7.4.4"   # pin to a specific chart version if needed

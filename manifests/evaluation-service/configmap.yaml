@@ -9,5 +9,5 @@ data:
   FLAG_SERVICE_URL: "http://a1b59bfacc7ce4b3c929f24e0129b6b4-34f7427456c48fde.elb.us-east-1.amazonaws.com/flag"
   TARGETING_SERVICE_URL: "http://a1b59bfacc7ce4b3c929f24e0129b6b4-34f7427456c48fde.elb.us-east-1.amazonaws.com/targeting"
   AWS_REGION: "us-east-1"
-  AWS_SQS_URL: "https://sqs.us-east-1.amazonaws.com/052058222675/evaluation_service_queue"
+  AWS_SQS_URL: "https://sqs.us-east-1.amazonaws.com/670047672777/evaluation_service_queue"
   PORT: "8004"

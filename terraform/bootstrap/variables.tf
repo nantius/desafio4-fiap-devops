@@ -5,13 +5,13 @@ variable "region" {
 }
 
 variable "bucket_name" {
-  description = "Name of the S3 bucket used to store Terraform state"
+  description = "Name of the S3 bucket used to store Terraform state. Must match backend.tf."
   type        = string
-  default     = "nantius-toggle-master-tfstate"
+  default     = "nantius-toggle-master-tfstate-desafio4"
 }
 
 variable "dynamodb_table_name" {
-  description = "Name of the DynamoDB table used for Terraform state locking"
+  description = "Name of the DynamoDB table used for Terraform state locking. Must match backend.tf."
   type        = string
   default     = "toggle-master-tfstate-lock"
 }

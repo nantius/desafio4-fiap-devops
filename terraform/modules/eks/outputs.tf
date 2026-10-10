@@ -35,16 +35,6 @@ output "node_security_group_id" {
 }
 
 output "node_role_arn" {
-  description = "ARN of the IAM role used by the node group"
-  value       = aws_iam_role.node_group.arn
-}
-
-output "oidc_provider_arn" {
-  description = "ARN of the OIDC provider (used to create IRSA roles)"
-  value       = aws_iam_openid_connect_provider.this.arn
-}
-
-output "oidc_provider_url" {
-  description = "OIDC issuer URL (without https://) — used in IAM trust policy conditions"
-  value       = replace(aws_eks_cluster.this.identity[0].oidc[0].issuer, "https://", "")
+  description = "ARN of the IAM role used by the node group (LabRole on AWS Academy)"
+  value       = data.aws_iam_role.lab.arn
 }

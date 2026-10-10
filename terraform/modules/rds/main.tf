@@ -94,13 +94,13 @@ resource "aws_db_instance" "this" {
 
   identifier = "${var.project}-${var.environment}-${each.key}"
 
-  engine               = "postgres"
-  engine_version       = var.engine_version
-  instance_class       = var.instance_class
-  allocated_storage    = var.allocated_storage_gb
+  engine                = "postgres"
+  engine_version        = var.engine_version
+  instance_class        = var.instance_class
+  allocated_storage     = var.allocated_storage_gb
   max_allocated_storage = var.max_allocated_storage_gb
-  storage_type         = "gp3"
-  storage_encrypted    = true
+  storage_type          = "gp3"
+  storage_encrypted     = true
 
   db_name  = each.value.db_name
   username = each.value.username
@@ -113,10 +113,10 @@ resource "aws_db_instance" "this" {
   # SSL is enforced at the application level (SSL_MODE=require in the services)
   # RDS forces SSL by default; rds.force_ssl is enabled via parameter group if needed
 
-  multi_az               = var.multi_az
-  publicly_accessible    = false
-  deletion_protection    = var.deletion_protection
-  skip_final_snapshot    = var.skip_final_snapshot
+  multi_az                  = var.multi_az
+  publicly_accessible       = false
+  deletion_protection       = var.deletion_protection
+  skip_final_snapshot       = var.skip_final_snapshot
   final_snapshot_identifier = var.skip_final_snapshot ? null : "${var.project}-${var.environment}-${each.key}-final-snapshot"
 
   backup_retention_period = var.backup_retention_days

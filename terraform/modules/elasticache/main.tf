@@ -97,14 +97,14 @@ resource "aws_elasticache_replication_group" "this" {
   subnet_group_name    = aws_elasticache_subnet_group.this.name
   security_group_ids   = [aws_security_group.redis.id]
 
-  engine               = "redis"
-  engine_version       = var.engine_version
+  engine         = "redis"
+  engine_version = var.engine_version
 
   # Encryption in-transit and at-rest
   at_rest_encryption_enabled = true
   transit_encryption_enabled = true
   # transit_encryption_mode must be "required" when transit_encryption_enabled is true
-  transit_encryption_mode    = "required"
+  transit_encryption_mode = "required"
 
   automatic_failover_enabled = var.num_cache_clusters > 1 ? true : false
   multi_az_enabled           = var.num_cache_clusters > 1 ? var.multi_az : false

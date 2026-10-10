@@ -1,0 +1,24 @@
+# AWS Academy workaround for KEDA.
+#
+# KEDA's SQS scaler needs IRSA, which the lab account cannot provide, so we
+# fall back to a CPU-based HorizontalPodAutoscaler. As the SQS queue fills,
+# analytics-service works harder draining it, CPU rises, and the HPA adds pods.
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: analytics-service-hpa
+  namespace: analytics-service
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: analytics-service
+  minReplicas: 1
+  maxReplicas: 5
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70

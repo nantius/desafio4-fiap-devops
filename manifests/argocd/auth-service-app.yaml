@@ -10,8 +10,8 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: https://github.com/nantius/desafio3-fiap-devops
-    targetRevision: master
+    repoURL: https://github.com/nantius/desafio4-fiap-devops
+    targetRevision: main
     path: manifests/auth-service
   destination:
     server: https://kubernetes.default.svc

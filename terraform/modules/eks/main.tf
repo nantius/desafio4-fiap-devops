@@ -7,31 +7,21 @@ locals {
 }
 
 # ─────────────────────────────────────────────
-# IAM Role — EKS Control Plane
+# AWS Academy / LabRole constraint
+#
+# The Academy lab account cannot create IAM roles
+# or policies. Instead, the pre-existing LabRole is
+# reused for BOTH the EKS control plane and the
+# worker node group. We look it up as a data source
+# so Terraform never attempts to create it.
+#
+# The node group inherits LabRole, so pods that need
+# AWS access (evaluation-service → SQS, analytics-service
+# → SQS + DynamoDB) use the node instance credentials
+# (LabRole) instead of IRSA, which is unavailable here.
 # ─────────────────────────────────────────────
-resource "aws_iam_role" "cluster" {
-  name = "${var.project}-${var.environment}-eks-cluster-role"
-
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [{
-      Effect    = "Allow"
-      Principal = { Service = "eks.amazonaws.com" }
-      Action    = "sts:AssumeRole"
-    }]
-  })
-
-  tags = local.common_tags
-}
-
-resource "aws_iam_role_policy_attachment" "cluster_AmazonEKSClusterPolicy" {
-  policy_arn = "arn:aws:iam::aws:policy/AmazonEKSClusterPolicy"
-  role       = aws_iam_role.cluster.name
-}
-
-resource "aws_iam_role_policy_attachment" "cluster_AmazonEKSVPCResourceController" {
-  policy_arn = "arn:aws:iam::aws:policy/AmazonEKSVPCResourceController"
-  role       = aws_iam_role.cluster.name
+data "aws_iam_role" "lab" {
+  name = var.lab_role_name
 }
 
 # ─────────────────────────────────────────────
@@ -56,12 +46,12 @@ resource "aws_security_group" "cluster" {
 }
 
 # ─────────────────────────────────────────────
-# EKS Cluster
+# EKS Cluster  (uses LabRole as the cluster role)
 # ─────────────────────────────────────────────
 resource "aws_eks_cluster" "this" {
   name     = var.cluster_name
   version  = var.kubernetes_version
-  role_arn = aws_iam_role.cluster.arn
+  role_arn = data.aws_iam_role.lab.arn
 
   vpc_config {
     subnet_ids              = concat(var.public_subnet_ids, var.private_subnet_ids)
@@ -76,61 +66,6 @@ resource "aws_eks_cluster" "this" {
   tags = merge(local.common_tags, {
     Name = var.cluster_name
   })
-
-  depends_on = [
-    aws_iam_role_policy_attachment.cluster_AmazonEKSClusterPolicy,
-    aws_iam_role_policy_attachment.cluster_AmazonEKSVPCResourceController,
-  ]
-}
-
-# ─────────────────────────────────────────────
-# OIDC Provider (required for IRSA)
-# ─────────────────────────────────────────────
-data "tls_certificate" "cluster" {
-  url = aws_eks_cluster.this.identity[0].oidc[0].issuer
-}
-
-resource "aws_iam_openid_connect_provider" "this" {
-  client_id_list  = ["sts.amazonaws.com"]
-  thumbprint_list = [data.tls_certificate.cluster.certificates[0].sha1_fingerprint]
-  url             = aws_eks_cluster.this.identity[0].oidc[0].issuer
-
-  tags = merge(local.common_tags, {
-    Name = "${var.cluster_name}-oidc"
-  })
-}
-
-# ─────────────────────────────────────────────
-# IAM Role — Node Group (worker nodes)
-# ─────────────────────────────────────────────
-resource "aws_iam_role" "node_group" {
-  name = "${var.project}-${var.environment}-eks-node-role"
-
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [{
-      Effect    = "Allow"
-      Principal = { Service = "ec2.amazonaws.com" }
-      Action    = "sts:AssumeRole"
-    }]
-  })
-
-  tags = local.common_tags
-}
-
-resource "aws_iam_role_policy_attachment" "node_AmazonEKSWorkerNodePolicy" {
-  policy_arn = "arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy"
-  role       = aws_iam_role.node_group.name
-}
-
-resource "aws_iam_role_policy_attachment" "node_AmazonEKS_CNI_Policy" {
-  policy_arn = "arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy"
-  role       = aws_iam_role.node_group.name
-}
-
-resource "aws_iam_role_policy_attachment" "node_AmazonEC2ContainerRegistryReadOnly" {
-  policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
-  role       = aws_iam_role.node_group.name
 }
 
 # ─────────────────────────────────────────────
@@ -184,12 +119,12 @@ resource "aws_security_group_rule" "cluster_ingress_nodes" {
 }
 
 # ─────────────────────────────────────────────
-# EKS Managed Node Group
+# EKS Managed Node Group  (uses LabRole as node role)
 # ─────────────────────────────────────────────
 resource "aws_eks_node_group" "this" {
   cluster_name    = aws_eks_cluster.this.name
   node_group_name = "${var.cluster_name}-${var.node_group_name}"
-  node_role_arn   = aws_iam_role.node_group.arn
+  node_role_arn   = data.aws_iam_role.lab.arn
 
   # Place worker nodes in private subnets
   subnet_ids = var.private_subnet_ids
@@ -216,10 +151,4 @@ resource "aws_eks_node_group" "this" {
   tags = merge(local.common_tags, {
     Name = "${var.cluster_name}-${var.node_group_name}"
   })
-
-  depends_on = [
-    aws_iam_role_policy_attachment.node_AmazonEKSWorkerNodePolicy,
-    aws_iam_role_policy_attachment.node_AmazonEKS_CNI_Policy,
-    aws_iam_role_policy_attachment.node_AmazonEC2ContainerRegistryReadOnly,
-  ]
 }

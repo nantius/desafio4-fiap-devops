@@ -29,11 +29,6 @@ output "eks_cluster_endpoint" {
   value       = module.eks.cluster_endpoint
 }
 
-output "eks_oidc_provider_arn" {
-  description = "OIDC provider ARN (used for IRSA)"
-  value       = module.eks.oidc_provider_arn
-}
-
 output "eks_node_security_group_id" {
   description = "Security group ID of the EKS worker nodes"
   value       = module.eks.node_security_group_id
@@ -105,16 +100,14 @@ output "sqs_dlq_url" {
 }
 
 # ═══════════════════════════════════════════════
-# IAM / IRSA
+# IAM
+#
+# AWS Academy: no IRSA roles or GitHub Actions OIDC role are created.
+# Services use the node's LabRole; CI uses temporary Lab credentials.
 # ═══════════════════════════════════════════════
-output "irsa_role_arns" {
-  description = "Map of service name → IRSA role ARN (use in K8s ServiceAccount annotations)"
-  value       = module.iam.role_arns
-}
-
-output "github_actions_role_arn" {
-  description = "ARN to set as AWS_ROLE_ARN in GitHub repository secrets"
-  value       = module.iam.github_actions_role_arn
+output "lab_role_arn" {
+  description = "ARN of the LabRole reused for EKS and SQS access"
+  value       = data.aws_iam_role.lab.arn
 }
 
 # ═══════════════════════════════════════════════

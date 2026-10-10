@@ -67,6 +67,12 @@ variable "cluster_name" {
   default     = "toggle"
 }
 
+variable "lab_role_name" {
+  description = "Name of the pre-existing AWS Academy IAM role (LabRole) reused for the EKS control plane, node group, and SQS access. Cannot be created on the lab account."
+  type        = string
+  default     = "LabRole"
+}
+
 variable "kubernetes_version" {
   description = "Kubernetes version"
   type        = string
@@ -322,64 +328,6 @@ variable "sqs_dlq_message_retention_seconds" {
   description = "How long messages are retained in the DLQ (seconds)"
   type        = number
   default     = 1209600
-}
-
-# ═══════════════════════════════════════════════
-# GitHub Actions
-# ═══════════════════════════════════════════════
-variable "github_org" {
-  description = "GitHub organization or username that owns the repository (e.g. nantius)"
-  type        = string
-}
-
-variable "github_repo" {
-  description = "GitHub repository name without the org prefix (e.g. FIAP-devops)"
-  type        = string
-}
-
-variable "tfstate_bucket_name" {
-  description = "S3 bucket name for Terraform state — scoped in the GitHub Actions deploy policy"
-  type        = string
-  default     = "nantius-toggle-master-tfstate"
-}
-
-variable "tfstate_lock_table_name" {
-  description = "DynamoDB table name for Terraform state locking — scoped in the deploy policy"
-  type        = string
-  default     = "toggle-master-tfstate-lock"
-}
-
-# ═══════════════════════════════════════════════
-# IAM / IRSA service accounts
-# ═══════════════════════════════════════════════
-variable "service_accounts" {
-  description = "Kubernetes service account details per service for IRSA trust policies"
-  type = map(object({
-    namespace            = string
-    service_account_name = string
-  }))
-  default = {
-    "auth-service" = {
-      namespace            = "auth-service"
-      service_account_name = "auth-service-sa"
-    }
-    "flag-service" = {
-      namespace            = "flag-service"
-      service_account_name = "flag-service-sa"
-    }
-    "targeting-service" = {
-      namespace            = "targeting-service"
-      service_account_name = "targeting-service-sa"
-    }
-    "evaluation-service" = {
-      namespace            = "evaluation-service"
-      service_account_name = "evaluation-service-sa"
-    }
-    "analytics-service" = {
-      namespace            = "analytics-service"
-      service_account_name = "analytics-service-sa"
-    }
-  }
 }
 
 # ═══════════════════════════════════════════════

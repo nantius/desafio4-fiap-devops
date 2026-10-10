@@ -27,8 +27,3 @@ output "nginx_ingress_chart_version" {
   description = "Installed ingress-nginx Helm chart version"
   value       = helm_release.nginx_ingress.version
 }
-
-output "keda_chart_version" {
-  description = "Installed KEDA Helm chart version"
-  value       = helm_release.keda.version
-}
