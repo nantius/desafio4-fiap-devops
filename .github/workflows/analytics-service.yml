@@ -3,14 +3,14 @@ name: analytics-service CI/CD
 on:
   workflow_dispatch:
   push:
-    branches: [master]
+    branches: [main]
     tags: ["v*.*.*"]
     paths:
       - "analytics-service/**"
       - ".github/workflows/analytics-service.yml"
       - ".github/workflows/reusable-python.yml"
   pull_request:
-    branches: [master]
+    branches: [main]
     paths:
       - "analytics-service/**"
       - ".github/workflows/analytics-service.yml"

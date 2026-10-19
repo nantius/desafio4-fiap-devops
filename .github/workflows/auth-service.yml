@@ -3,14 +3,14 @@ name: auth-service CI/CD
 on:
   workflow_dispatch:
   push:
-    branches: [master]
+    branches: [main]
     tags: ["v*.*.*"]
     paths:
       - "auth-service/**"
       - ".github/workflows/auth-service.yml"
       - ".github/workflows/reusable-go.yml"
   pull_request:
-    branches: [master]
+    branches: [main]
     paths:
       - "auth-service/**"
       - ".github/workflows/auth-service.yml"

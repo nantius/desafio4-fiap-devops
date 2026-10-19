@@ -3,14 +3,14 @@ name: evaluation-service CI/CD
 on:
   workflow_dispatch:
   push:
-    branches: [master]
+    branches: [main]
     tags: ["v*.*.*"]
     paths:
       - "evaluation-service/**"
       - ".github/workflows/evaluation-service.yml"
       - ".github/workflows/reusable-go.yml"
   pull_request:
-    branches: [master]
+    branches: [main]
     paths:
       - "evaluation-service/**"
       - ".github/workflows/evaluation-service.yml"

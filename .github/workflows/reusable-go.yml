@@ -354,14 +354,14 @@ jobs:
             exit 0
           fi
           git commit -m "chore(gitops): update ${{ inputs.service }} image to ${VERSION} [skip ci]"
-          # Retry with rebase to handle concurrent pipelines pushing to master
+          # Retry with rebase to handle concurrent pipelines pushing to main
           for attempt in 1 2 3 4 5; do
-            if git push origin master; then
+            if git push origin main; then
               echo "Pushed on attempt $attempt"
               exit 0
             fi
-            echo "Push rejected (attempt $attempt) — rebasing on latest master and retrying..."
-            git pull --rebase origin master
+            echo "Push rejected (attempt $attempt) — rebasing on latest main and retrying..."
+            git pull --rebase origin main
           done
           echo "Failed to push after 5 attempts" >&2
           exit 1
