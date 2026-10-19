@@ -13,6 +13,9 @@ import (
 	"github.com/joho/godotenv"
 )
 
+// otelShutdownTimeout bounds how long we wait to flush telemetry on exit.
+const otelShutdownTimeout = 5 * time.Second
+
 // App struct (para injeção de dependência)
 type App struct {
 	DB        *sql.DB
@@ -22,6 +25,22 @@ type App struct {
 func main() {
 	// Carrega o .env para desenvolvimento local. Em produção, isso não fará nada.
 	_ = godotenv.Load()
+
+	// --- OpenTelemetry ---
+	// Initialize telemetry early so startup is traced too. Best-effort: a
+	// failure here must not stop the service from serving traffic.
+	otelShutdown, err := initOTel(context.Background())
+	if err != nil {
+		log.Printf("Aviso: falha ao inicializar OpenTelemetry: %v", err)
+		otelShutdown = func(context.Context) error { return nil }
+	}
+	defer func() {
+		ctx, cancel := context.WithTimeout(context.Background(), otelShutdownTimeout)
+		defer cancel()
+		if serr := otelShutdown(ctx); serr != nil {
+			log.Printf("erro ao finalizar OpenTelemetry: %v", serr)
+		}
+	}()
 
 	// --- Configuração ---
 	port := os.Getenv("PORT")
@@ -77,8 +96,12 @@ func main() {
 	// Eles são protegidos pelo middleware de autenticação
 	mux.Handle("/admin/keys", app.masterKeyAuthMiddleware(http.HandlerFunc(app.createKeyHandler)))
 
+	// Wrap the mux so every request is traced and HTTP server metrics are
+	// recorded, then exported via OTLP to the OTel Collector.
+	handler := otelHandler(mux)
+
 	log.Printf("Serviço de Autenticação (Go) rodando na porta %s", port)
-	if err := http.ListenAndServe(":"+port, mux); err != nil {
+	if err := http.ListenAndServe(":"+port, handler); err != nil {
 		log.Fatal(err)
 	}
 }

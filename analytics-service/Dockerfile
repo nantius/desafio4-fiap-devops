@@ -16,5 +16,7 @@ COPY . .
 # Expõe a porta (se sua aplicação for um servidor web)
 EXPOSE 8005
 
-# Comando padrão para iniciar a aplicação
-CMD ["python", "app.py"]
+# Run under the OpenTelemetry auto-instrumentation agent. botocore patching
+# continues the distributed trace from the SQS message attributes that
+# evaluation-service injected, and traces the DynamoDB writes.
+CMD ["opentelemetry-instrument", "python", "app.py"]

@@ -5,3 +5,11 @@ python-dotenv==0.21.0
 requests==2.28.1
 werkzeug==3.0.3
 
+# ── OpenTelemetry (auto-instrumentation) ──
+# opentelemetry-instrument wraps the app at launch and auto-patches Flask,
+# requests (auth /validate calls) and psycopg2, exporting OTLP to the Collector.
+opentelemetry-distro==0.48b0
+opentelemetry-exporter-otlp==1.27.0
+opentelemetry-instrumentation-flask==0.48b0
+opentelemetry-instrumentation-requests==0.48b0
+opentelemetry-instrumentation-psycopg2==0.48b0

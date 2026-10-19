@@ -36,6 +36,13 @@ spec:
             timeoutSeconds: 5
             periodSeconds: 10
           env:
+            # ── OpenTelemetry → OTel Collector (observability namespace) ──
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: "http://otel-collector-opentelemetry-collector.observability.svc.cluster.local:4317"
+            - name: OTEL_SERVICE_NAME
+              value: "auth-service"
+            - name: DEPLOY_ENV
+              value: "prod"
             - name: DB_USER
               valueFrom:
                 secretKeyRef:

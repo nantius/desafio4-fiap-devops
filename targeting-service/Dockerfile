@@ -16,5 +16,5 @@ COPY . .
 # Expõe a porta (se sua aplicação for um servidor web)
 EXPOSE 8003
 
-# Comando padrão para iniciar a aplicação
-CMD ["python", "app.py"]
+# Run under the OpenTelemetry auto-instrumentation agent (Flask/requests/psycopg2).
+CMD ["opentelemetry-instrument", "python", "app.py"]

@@ -16,5 +16,7 @@ COPY . .
 # Expõe a porta (se sua aplicação for um servidor web)
 EXPOSE 8002
 
-# Comando padrão para iniciar a aplicação
-CMD ["python", "app.py"]
+# Run under the OpenTelemetry auto-instrumentation agent. It patches Flask,
+# requests and psycopg2 at import time and exports OTLP to the Collector
+# (endpoint/service name come from OTEL_* env vars set in the k8s manifest).
+CMD ["opentelemetry-instrument", "python", "app.py"]

@@ -3,3 +3,12 @@ gunicorn==22.0.0
 python-dotenv==0.21.0
 boto3==1.26.50
 werkzeug==3.0.3
+
+# ── OpenTelemetry (auto-instrumentation) ──
+# botocore instrumentation auto-patches the SQS receive + DynamoDB put_item
+# calls AND extracts the trace context that evaluation-service injected into
+# the SQS message attributes, continuing the distributed trace across the queue.
+opentelemetry-distro==0.48b0
+opentelemetry-exporter-otlp==1.27.0
+opentelemetry-instrumentation-flask==0.48b0
+opentelemetry-instrumentation-botocore==0.48b0

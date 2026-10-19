@@ -96,11 +96,17 @@ def sqs_worker_loop():
     log.info("Iniciando o worker SQS...")
     while True:
         try:
-            # Long-polling: espera até 20s por mensagens
+            # Long-polling: espera até 20s por mensagens.
+            # MessageAttributeNames=['All'] is required so the trace context
+            # that evaluation-service injected (traceparent/tracestate) is
+            # returned and the OTel botocore instrumentation can continue the
+            # distributed trace across the SQS hop.
             response = sqs_client.receive_message(
                 QueueUrl=SQS_QUEUE_URL,
                 MaxNumberOfMessages=10,  # Processa em lotes de até 10
-                WaitTimeSeconds=20
+                WaitTimeSeconds=20,
+                MessageAttributeNames=['All'],
+                AttributeNames=['All']
             )
 
             messages = response.get('Messages', [])

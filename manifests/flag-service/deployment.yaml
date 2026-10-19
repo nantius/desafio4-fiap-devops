@@ -36,6 +36,15 @@ spec:
             timeoutSeconds: 5
             periodSeconds: 10
           env:
+            # ── OpenTelemetry (auto-instrumentation) → OTel Collector ──
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: "http://otel-collector-opentelemetry-collector.observability.svc.cluster.local:4317"
+            - name: OTEL_EXPORTER_OTLP_PROTOCOL
+              value: "grpc"
+            - name: OTEL_SERVICE_NAME
+              value: "flag-service"
+            - name: OTEL_RESOURCE_ATTRIBUTES
+              value: "deployment.environment=prod"
             - name: DB_USER
               valueFrom:
                 secretKeyRef:
