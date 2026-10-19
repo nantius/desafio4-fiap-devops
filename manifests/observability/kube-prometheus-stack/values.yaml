@@ -1,0 +1,128 @@
+# ──────────────────────────────────────────────────────────────────────────
+# kube-prometheus-stack values — ToggleMaster Fase 4
+#
+# Tuned for an AWS Academy lab cluster (small node group, cost-sensitive):
+#   - modest resource requests
+#   - short metric retention
+#   - Grafana pre-provisioned with a Loki datasource + the custom dashboard
+#   - Alertmanager routing the auth-5xx alert to PagerDuty and Discord
+# ──────────────────────────────────────────────────────────────────────────
+
+fullnameOverride: kube-prometheus-stack
+
+# ── Prometheus ────────────────────────────────────────────────────────────
+prometheus:
+  prometheusSpec:
+    # Discover ServiceMonitor/PodMonitor objects in ALL namespaces, not just
+    # those with the release's helm label. Our microservices live in their own
+    # namespaces (auth-service, flag-service, ...), so we must not filter.
+    serviceMonitorSelectorNilUsesHelmValues: false
+    podMonitorSelectorNilUsesHelmValues: false
+    ruleSelectorNilUsesHelmValues: false
+    probeSelectorNilUsesHelmValues: false
+
+    # Keep storage small/cheap for the lab.
+    retention: 6h
+    retentionSize: 2GB
+
+    # Allow the OTel Collector to push metrics in via remote-write (OTLP → PRW).
+    enableRemoteWriteReceiver: true
+
+    resources:
+      requests:
+        cpu: 150m
+        memory: 512Mi
+      limits:
+        cpu: "1"
+        memory: 1Gi
+
+    # emptyDir (ephemeral) — fine for a short-lived demo cluster, avoids EBS PVCs.
+    # Swap to a volumeClaimTemplate if you want persistence across pod restarts.
+
+# ── Alertmanager ──────────────────────────────────────────────────────────
+alertmanager:
+  alertmanagerSpec:
+    resources:
+      requests:
+        cpu: 50m
+        memory: 128Mi
+      limits:
+        cpu: 200m
+        memory: 256Mi
+  # Routing/receivers (PagerDuty + Discord) are provided via a separate
+  # AlertmanagerConfig / secret so real keys never live in git. See
+  # manifests/observability/alerting/. We leave the chart's default config here
+  # and layer our routes on top.
+  config:
+    global:
+      resolve_timeout: 5m
+    route:
+      group_by: ["alertname", "namespace"]
+      group_wait: 30s
+      group_interval: 5m
+      repeat_interval: 4h
+      receiver: "null"
+      routes:
+        - matchers:
+            - severity = "critical"
+          receiver: "null"   # overridden by the AlertmanagerConfig once secrets exist
+    receivers:
+      - name: "null"
+
+# ── Grafana ───────────────────────────────────────────────────────────────
+grafana:
+  # Admin password is injected from a secret at deploy time, not committed.
+  # Create it before syncing:
+  #   kubectl -n observability create secret generic grafana-admin \
+  #     --from-literal=admin-user=admin --from-literal=admin-password=<pw>
+  admin:
+    existingSecret: grafana-admin
+    userKey: admin-user
+    passwordKey: admin-password
+
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      cpu: 300m
+      memory: 256Mi
+
+  # Add Loki as a datasource so the custom dashboard's live-logs panel works.
+  additionalDataSources:
+    - name: Loki
+      type: loki
+      access: proxy
+      url: http://loki-gateway.observability.svc.cluster.local
+      jsonData:
+        maxLines: 1000
+
+  # Discover dashboards from ConfigMaps labelled grafana_dashboard=1
+  # (our custom ToggleMaster dashboard is provisioned that way).
+  sidecar:
+    dashboards:
+      enabled: true
+      label: grafana_dashboard
+      labelValue: "1"
+      searchNamespace: ALL
+      folderAnnotation: grafana_folder
+      provider:
+        foldersFromFilesStructure: true
+    datasources:
+      enabled: true
+
+  service:
+    type: ClusterIP
+
+# ── Trim components the lab doesn't need (save resources) ───────────────────
+# Keep node-exporter + kube-state-metrics (needed for cluster resource panels).
+# Disable control-plane scrape targets that EKS doesn't expose to avoid noisy
+# "down" targets.
+kubeControllerManager:
+  enabled: false
+kubeScheduler:
+  enabled: false
+kubeEtcd:
+  enabled: false
+kubeProxy:
+  enabled: false

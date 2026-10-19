@@ -1,0 +1,38 @@
+# Custom Grafana dashboards for ToggleMaster (Fase 4 requirement).
+#
+# Deploys the dashboard ConfigMap(s) under manifests/observability/grafana-dashboards/.
+# Each ConfigMap is labelled grafana_dashboard=1 so the kube-prometheus-stack
+# Grafana sidecar auto-imports it. The main dashboard centralizes:
+#   - cluster resource usage (CPU/memory)
+#   - microservice request rates (and 5xx error rate)
+#   - a live logs panel backed by Loki
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: grafana-dashboards
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: toggle-master
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/nantius/desafio4-fiap-devops
+    targetRevision: main
+    path: manifests/observability/grafana-dashboards
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: observability
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m

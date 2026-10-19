@@ -1,0 +1,41 @@
+# Loki — centralized log aggregation for all cluster containers.
+# Deployed in SingleBinary mode with filesystem storage (no S3) to stay simple
+# and cheap on the lab cluster. The OTel Collector ships logs here; Grafana
+# queries it via the Loki datasource for the dashboard's live-logs panel.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: loki
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: toggle-master
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  sources:
+    - repoURL: https://grafana.github.io/helm-charts
+      chart: loki
+      targetRevision: 6.18.0
+      helm:
+        releaseName: loki
+        valueFiles:
+          - $values/manifests/observability/loki/values.yaml
+    - repoURL: https://github.com/nantius/desafio4-fiap-devops
+      targetRevision: main
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: observability
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m

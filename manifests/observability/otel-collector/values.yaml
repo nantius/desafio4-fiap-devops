@@ -1,0 +1,135 @@
+# ──────────────────────────────────────────────────────────────────────────
+# OpenTelemetry Collector values — ToggleMaster Fase 4
+#
+# Gateway-mode Collector: a single Deployment that the 5 microservices send
+# OTLP to (service "otel-collector-opentelemetry-collector.observability:4317").
+#
+# Pipelines:
+#   traces  : otlp → [k8sattributes, resource, batch] → datadog
+#   metrics : otlp → [k8sattributes, resource, batch] → datadog, prometheusremotewrite
+#   logs    : otlp → [k8sattributes, resource, batch] → loki
+#
+# The Datadog API key is read from the DD_API_KEY env var, sourced from the
+# `datadog-secret` Secret (created at deploy time, never committed).
+# ──────────────────────────────────────────────────────────────────────────
+
+mode: deployment
+replicaCount: 1
+
+image:
+  repository: otel/opentelemetry-collector-contrib   # contrib = includes datadog + loki exporters
+  tag: "0.112.0"
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: "1"
+    memory: 512Mi
+
+# Inject the Datadog API key from a secret (kubectl create secret generic
+# datadog-secret -n observability --from-literal=api-key=<DD_API_KEY>).
+extraEnvs:
+  - name: DD_API_KEY
+    valueFrom:
+      secretKeyRef:
+        name: datadog-secret
+        key: api-key
+
+# The collector needs RBAC to read pod/node metadata for k8sattributes.
+clusterRole:
+  create: true
+  rules:
+    - apiGroups: [""]
+      resources: ["pods", "namespaces", "nodes"]
+      verbs: ["get", "list", "watch"]
+    - apiGroups: ["apps"]
+      resources: ["replicasets"]
+      verbs: ["get", "list", "watch"]
+
+ports:
+  otlp:
+    enabled: true
+    containerPort: 4317
+    servicePort: 4317
+    protocol: TCP
+  otlp-http:
+    enabled: true
+    containerPort: 4318
+    servicePort: 4318
+    protocol: TCP
+
+config:
+  receivers:
+    otlp:
+      protocols:
+        grpc:
+          endpoint: 0.0.0.0:4317
+        http:
+          endpoint: 0.0.0.0:4318
+
+  processors:
+    # Enrich spans/metrics/logs with k8s metadata (pod, namespace, node, deployment).
+    k8sattributes:
+      auth_type: serviceAccount
+      passthrough: false
+      extract:
+        metadata:
+          - k8s.namespace.name
+          - k8s.pod.name
+          - k8s.deployment.name
+          - k8s.node.name
+      pod_association:
+        - sources:
+            - from: resource_attribute
+              name: k8s.pod.ip
+        - sources:
+            - from: connection
+    resourcedetection:
+      detectors: [env, system]
+      timeout: 5s
+    batch:
+      send_batch_size: 1024
+      timeout: 10s
+
+  exporters:
+    # ── Datadog: traces + metrics (APM, service map, distributed tracing) ──
+    datadog:
+      api:
+        key: ${env:DD_API_KEY}
+        site: datadoghq.com   # change to datadoghq.eu if your DD org is EU
+      traces:
+        trace_buffer: 500
+    # ── Prometheus: metrics via remote-write into kube-prometheus-stack ──
+    prometheusremotewrite:
+      endpoint: http://kube-prometheus-stack-prometheus.observability.svc.cluster.local:9090/api/v1/write
+      tls:
+        insecure: true
+      resource_to_telemetry_conversion:
+        enabled: true
+    # ── Loki: logs ──
+    otlphttp/loki:
+      endpoint: http://loki-gateway.observability.svc.cluster.local/otlp
+      tls:
+        insecure: true
+
+  extensions:
+    health_check:
+      endpoint: 0.0.0.0:13133
+
+  service:
+    extensions: [health_check]
+    pipelines:
+      traces:
+        receivers: [otlp]
+        processors: [k8sattributes, resourcedetection, batch]
+        exporters: [datadog]
+      metrics:
+        receivers: [otlp]
+        processors: [k8sattributes, resourcedetection, batch]
+        exporters: [datadog, prometheusremotewrite]
+      logs:
+        receivers: [otlp]
+        processors: [k8sattributes, resourcedetection, batch]
+        exporters: [otlphttp/loki]

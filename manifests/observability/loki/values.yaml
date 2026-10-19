@@ -1,0 +1,87 @@
+# ──────────────────────────────────────────────────────────────────────────
+# Loki values — ToggleMaster Fase 4 (SingleBinary / filesystem)
+#
+# Single-binary deployment with local filesystem storage: no S3 bucket, no
+# object-store IAM (which the Academy lab can't grant anyway). Suited to a
+# short-lived demo cluster. For production you'd switch to the distributed
+# mode backed by S3.
+# ──────────────────────────────────────────────────────────────────────────
+
+loki:
+  auth_enabled: false
+
+  schemaConfig:
+    configs:
+      - from: "2024-04-01"
+        store: tsdb
+        object_store: filesystem
+        schema: v13
+        index:
+          prefix: loki_index_
+          period: 24h
+
+  storage:
+    type: filesystem
+
+  # Keep ingestion permissive enough for a lab; Loki's defaults are strict.
+  limits_config:
+    retention_period: 72h
+    reject_old_samples: false
+    ingestion_rate_mb: 8
+    ingestion_burst_size_mb: 16
+
+  # Single-binary needs these subsystems collapsed.
+  commonConfig:
+    path_prefix: /var/loki
+    replication_factor: 1
+
+# Run as a single pod (cheapest). Disable the distributed components.
+deploymentMode: SingleBinary
+
+singleBinary:
+  replicas: 1
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  persistence:
+    enabled: false   # ephemeral for the demo; logs don't need to survive restarts
+
+# Disable the scalable-mode components so nothing else gets scheduled.
+backend:
+  replicas: 0
+read:
+  replicas: 0
+write:
+  replicas: 0
+
+# The chart deploys a self-monitoring/canary stack by default — turn it off
+# to save resources on the small lab node group.
+chunksCache:
+  enabled: false
+resultsCache:
+  enabled: false
+lokiCanary:
+  enabled: false
+test:
+  enabled: false
+monitoring:
+  selfMonitoring:
+    enabled: false
+    grafanaAgent:
+      installOperator: false
+
+# Gateway (nginx) in front of Loki — Grafana datasource points at this.
+gateway:
+  enabled: true
+  replicas: 1
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi

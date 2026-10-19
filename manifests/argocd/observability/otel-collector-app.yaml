@@ -1,0 +1,47 @@
+# OpenTelemetry Collector — the MANDATORY central telemetry hub for Fase 4.
+#
+# All 5 microservices export OTLP (traces + metrics + logs) to this Collector.
+# The Collector then fans the data out to the correct backends:
+#   - traces  → Datadog (APM, distributed tracing, service map)
+#   - metrics → Datadog + Prometheus (remote-write)
+#   - logs    → Loki
+#
+# Deployed as a Deployment (gateway pattern). Config lives in the repo values
+# file; the Datadog API key is injected from a Secret, never committed.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: otel-collector
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: toggle-master
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  sources:
+    - repoURL: https://open-telemetry.github.io/opentelemetry-helm-charts
+      chart: opentelemetry-collector
+      targetRevision: 0.108.0
+      helm:
+        releaseName: otel-collector
+        valueFiles:
+          - $values/manifests/observability/otel-collector/values.yaml
+    - repoURL: https://github.com/nantius/desafio4-fiap-devops
+      targetRevision: main
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: observability
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m

@@ -1,0 +1,22 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: observability
+
+# Turn the dashboard JSON into a ConfigMap that the Grafana sidecar imports.
+# The grafana_dashboard=1 label is what the sidecar watches for; the
+# grafana_folder annotation files it under a named folder in the UI.
+configMapGenerator:
+  - name: toggle-master-dashboard
+    files:
+      - toggle-master-dashboard.json
+    options:
+      labels:
+        grafana_dashboard: "1"
+      annotations:
+        grafana_folder: "ToggleMaster"
+
+# ConfigMap content is static; keep a stable name (no content hash suffix) so
+# ArgoCD doesn't churn the resource on every sync.
+generatorOptions:
+  disableNameSuffixHash: true

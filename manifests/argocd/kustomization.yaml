@@ -5,8 +5,14 @@ kind: Kustomization
 # Each resource here is an ArgoCD Application CR for one service.
 
 resources:
+  # ── Microservices ──
   - auth-service-app.yaml
   - flag-service-app.yaml
   - targeting-service-app.yaml
   - evaluation-service-app.yaml
   - analytics-service-app.yaml
+  # ── Observability stack (Fase 4) ──
+  - observability/kube-prometheus-stack-app.yaml
+  - observability/loki-app.yaml
+  - observability/otel-collector-app.yaml
+  - observability/grafana-dashboards-app.yaml

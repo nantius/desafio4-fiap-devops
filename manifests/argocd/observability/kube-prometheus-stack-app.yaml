@@ -1,0 +1,48 @@
+# kube-prometheus-stack = Prometheus + Alertmanager + Grafana + node-exporter
+# + kube-state-metrics, installed as a single Helm release via ArgoCD.
+#
+# This is the metrics + visualization + alerting backbone for Fase 4:
+#   - Prometheus      → infra & microservice metrics storage/queries
+#   - Grafana         → dashboards (custom ToggleMaster dashboard provisioned
+#                       from the observability-grafana-dashboards app)
+#   - Alertmanager    → routes the "auth 5xx > 5%" alert to PagerDuty + Discord
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: kube-prometheus-stack
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: toggle-master
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  sources:
+    # 1) The upstream Helm chart, parameterized by values held in our repo.
+    - repoURL: https://prometheus-community.github.io/helm-charts
+      chart: kube-prometheus-stack
+      targetRevision: 65.1.1
+      helm:
+        releaseName: kube-prometheus-stack
+        valueFiles:
+          - $values/manifests/observability/kube-prometheus-stack/values.yaml
+    # 2) This git repo, used only to supply the values file above.
+    - repoURL: https://github.com/nantius/desafio4-fiap-devops
+      targetRevision: main
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: observability
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true   # CRDs in this chart are large; SSA avoids annotation size limits
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
