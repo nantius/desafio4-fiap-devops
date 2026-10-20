@@ -133,6 +133,7 @@ variable "ecr_repository_names" {
     "targeting-service",
     "evaluation-service",
     "analytics-service",
+    "webhook-adapter",
   ]
 }
 

@@ -1,0 +1,74 @@
+# AlertmanagerConfig — routes the auth-service critical alert to three places:
+#   1. PagerDuty      → opens an incident (pages on-call)
+#   2. Discord        → posts a detailed ChatOps notification
+#   3. Self-healing   → GitHub repository_dispatch webhook that restarts auth-service
+#
+# All secret endpoints (PagerDuty routing key, Discord webhook, GitHub PAT)
+# live in the `alertmanager-toggle-secrets` Secret, created at deploy time and
+# never committed. See manifests/observability/alerting/README.md.
+#
+# kube-prometheus-stack's Alertmanager discovers this via alertmanagerConfigSelector
+# (nil-uses-helm-values is false by default, so label with the release).
+apiVersion: monitoring.coreos.com/v1alpha1
+kind: AlertmanagerConfig
+metadata:
+  name: toggle-master-routes
+  namespace: observability
+  labels:
+    release: kube-prometheus-stack
+    app.kubernetes.io/part-of: toggle-master
+spec:
+  route:
+    receiver: "default-null"
+    groupBy: ["alertname", "service"]
+    groupWait: 30s
+    groupInterval: 5m
+    repeatInterval: 1h
+    routes:
+      - receiver: "auth-critical"
+        matchers:
+          - name: alertname
+            value: AuthServiceHigh5xxRate
+        # Keep paging/notifying quick to re-fire for the demo.
+        repeatInterval: 15m
+        continue: false
+
+  receivers:
+    - name: "default-null"
+
+    - name: "auth-critical"
+      # ── PagerDuty: open an incident ──
+      pagerdutyConfigs:
+        - routingKey:
+            name: alertmanager-toggle-secrets
+            key: pagerduty-routing-key
+          description: "{{ .CommonAnnotations.summary }}"
+          severity: critical
+          details:
+            service: "{{ .CommonLabels.service }}"
+            description: "{{ .CommonAnnotations.description }}"
+            runbook: "{{ .CommonAnnotations.runbook_url }}"
+
+      # ── Discord (ChatOps): Alertmanager's Slack-compatible webhook works with
+      #    Discord when the URL has /slack appended. We send a detailed message. ──
+      slackConfigs:
+        - apiURL:
+            name: alertmanager-toggle-secrets
+            key: discord-webhook-url
+          channel: "#incidents"
+          sendResolved: true
+          title: ":rotating_light: {{ .CommonAnnotations.summary }}"
+          text: >-
+            *Service:* {{ .CommonLabels.service }}
+            *Severity:* {{ .CommonLabels.severity }}
+            *Details:* {{ .CommonAnnotations.description }}
+            *Runbook:* {{ .CommonAnnotations.runbook_url }}
+
+      # ── Self-healing: POST firing alerts to the in-cluster webhook-adapter,
+      #    which calls GitHub repository_dispatch → the self-heal Action runs
+      #    `kubectl rollout restart deployment/auth-service`. The adapter URL is
+      #    a stable in-cluster service address, so no secret is needed here. ──
+      webhookConfigs:
+        - url: http://webhook-adapter.observability.svc.cluster.local/alert
+          sendResolved: false
+          maxAlerts: 1

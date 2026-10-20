@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: webhook-adapter
+  namespace: observability
+  labels:
+    app: webhook-adapter
+spec:
+  type: ClusterIP
+  selector:
+    app: webhook-adapter
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8080

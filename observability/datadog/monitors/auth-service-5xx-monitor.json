@@ -1,0 +1,17 @@
+{
+  "_comment": "Datadog monitor for the auth-service 5xx error rate (Fase 4 req. 4, APM-side alert). Import via: POST /api/v1/monitor with DD-API-KEY/DD-APPLICATION-KEY, or manage with the datadog_monitor Terraform resource. The query uses OTel HTTP server spans ingested from the OTel Collector's datadog exporter; adjust the resource/span name filters to match what appears in your Datadog APM.",
+  "name": "[ToggleMaster] auth-service 5xx error rate > 5%",
+  "type": "trace-analytics alert",
+  "query": "trace-analytics(\"service:auth-service operation_name:http.server\").rollup(\"count\").by(\"http.status_code\").last(\"5m\") > 5",
+  "message": "auth-service HTTP 5xx error rate has exceeded 5% over the last 5 minutes.\n\nThis will open a PagerDuty incident and notify the Discord channel. The in-cluster self-healing automation will also restart the deployment.\n\nRunbook: https://github.com/nantius/desafio4-fiap-devops/blob/main/docs/runbooks/auth-5xx.md\n\n@pagerduty-ToggleMaster @webhook-discord-incidents",
+  "tags": ["service:auth-service", "project:toggle-master", "phase:fase4"],
+  "options": {
+    "thresholds": {
+      "critical": 5
+    },
+    "notify_no_data": false,
+    "renotify_interval": 15,
+    "include_tags": true,
+    "escalation_message": "auth-service 5xx still elevated — self-healing may not have resolved the issue; investigate manually."
+  }
+}

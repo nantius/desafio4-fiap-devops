@@ -1,0 +1,40 @@
+# PrometheusRule — the "smart alert" for Fase 4 req. 4.
+#
+# Fires when the auth-service HTTP 5xx error rate exceeds 5% of its traffic
+# over a 5-minute window. The metric (http_server_request_count) comes from the
+# OpenTelemetry instrumentation, routed into Prometheus by the OTel Collector's
+# prometheusremotewrite exporter.
+#
+# kube-prometheus-stack's Prometheus is configured with
+# ruleSelectorNilUsesHelmValues=false, so it discovers this rule across
+# namespaces by its release label.
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: auth-service-alerts
+  namespace: observability
+  labels:
+    release: kube-prometheus-stack   # matched by the Prometheus ruleSelector
+    app.kubernetes.io/part-of: toggle-master
+spec:
+  groups:
+    - name: auth-service.rules
+      rules:
+        - alert: AuthServiceHigh5xxRate
+          # 5xx rate as a percentage of all auth-service requests.
+          # clamp_min avoids divide-by-zero when there's no traffic.
+          expr: >
+            100 * sum(rate(http_server_request_count_total{service_name="auth-service", http_status_code=~"5.."}[5m]))
+            / clamp_min(sum(rate(http_server_request_count_total{service_name="auth-service"}[5m])), 1)
+            > 5
+          for: 1m
+          labels:
+            severity: critical
+            service: auth-service
+          annotations:
+            summary: "auth-service 5xx error rate above 5%"
+            description: >
+              auth-service has returned HTTP 5xx responses for more than 5% of
+              requests over the last 5 minutes. Triggering self-healing
+              (rollout restart) and paging on-call.
+            runbook_url: "https://github.com/nantius/desafio4-fiap-devops/blob/main/docs/runbooks/auth-5xx.md"

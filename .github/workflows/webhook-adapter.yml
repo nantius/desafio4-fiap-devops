@@ -1,0 +1,38 @@
+name: webhook-adapter CI/CD
+
+# Builds the self-healing webhook-adapter (Go) and pushes it to ECR, same
+# DevSecOps pipeline as the microservices. It lives under self-healing/, so the
+# service path is nested; there's no GitOps image-tag write-back because its
+# manifest tracks :latest (it's infra glue, not a product service).
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "self-healing/webhook-adapter/**"
+      - ".github/workflows/webhook-adapter.yml"
+      - ".github/workflows/reusable-go.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "self-healing/webhook-adapter/**"
+      - ".github/workflows/webhook-adapter.yml"
+      - ".github/workflows/reusable-go.yml"
+
+jobs:
+  pipeline:
+    uses: ./.github/workflows/reusable-go.yml
+    permissions:
+      contents: read
+    with:
+      service: self-healing/webhook-adapter
+      ecr_repository: webhook-adapter
+      binary_name: webhook-adapter
+      # No GitOps write-back: the manifest uses :latest.
+      gitops_manifests_path: "none"
+    secrets:
+      AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
+      AWS_REGION: ${{ secrets.AWS_REGION }}
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}

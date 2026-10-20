@@ -1,0 +1,36 @@
+# Alerting + Self-Healing (Fase 4 req. 4).
+#
+# Deploys the PrometheusRule (auth 5xx alert), the AlertmanagerConfig (routes to
+# PagerDuty + Discord + the self-heal webhook-adapter), and the webhook-adapter
+# itself. Depends on kube-prometheus-stack (CRDs) being installed first; ArgoCD
+# retries until the CRDs exist.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: alerting
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: toggle-master
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/nantius/desafio4-fiap-devops
+    targetRevision: main
+    path: manifests/observability/alerting
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: observability
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+    retry:
+      limit: 10
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 5m

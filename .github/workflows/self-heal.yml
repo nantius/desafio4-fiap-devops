@@ -1,0 +1,67 @@
+name: Self-Healing — rollout restart
+
+# Fase 4 req. 4 (Self-Healing). Triggered by a repository_dispatch webhook that
+# the in-cluster webhook-adapter fires when the AuthServiceHigh5xxRate alert
+# (Alertmanager) goes off. The job restarts the affected deployment to mitigate
+# the failure with no human in the loop.
+#
+# Also exposed via workflow_dispatch so it can be run manually in the demo.
+on:
+  repository_dispatch:
+    types: [self-heal]
+  workflow_dispatch:
+    inputs:
+      service:
+        description: "Service deployment to restart (namespace == name)"
+        required: true
+        default: "auth-service"
+
+permissions:
+  contents: read
+
+jobs:
+  rollout-restart:
+    name: kubectl rollout restart
+    runs-on: ubuntu-latest
+    steps:
+      - name: Resolve target service
+        id: target
+        run: |
+          # repository_dispatch carries client_payload.service; manual runs use the input.
+          SVC="${{ github.event.client_payload.service }}"
+          if [ -z "$SVC" ]; then
+            SVC="${{ github.event.inputs.service }}"
+          fi
+          if [ -z "$SVC" ]; then
+            SVC="auth-service"
+          fi
+          echo "service=$SVC" >> "$GITHUB_OUTPUT"
+          echo "Target service: $SVC"
+
+      # AWS Academy: authenticate with the temporary Lab credentials stored as
+      # GitHub secrets (the same ones the CI pipelines use).
+      - name: Configure AWS credentials (Lab static credentials)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v4
+
+      - name: Update kubeconfig for the EKS cluster
+        run: |
+          aws eks update-kubeconfig \
+            --name "${{ secrets.EKS_CLUSTER_NAME }}" \
+            --region "${{ secrets.AWS_REGION }}"
+
+      - name: Rollout restart the deployment
+        env:
+          SVC: ${{ steps.target.outputs.service }}
+        run: |
+          echo "Restarting deployment/$SVC in namespace $SVC ..."
+          kubectl -n "$SVC" rollout restart "deployment/$SVC"
+          kubectl -n "$SVC" rollout status "deployment/$SVC" --timeout=120s
+          echo "Self-healing complete for $SVC."

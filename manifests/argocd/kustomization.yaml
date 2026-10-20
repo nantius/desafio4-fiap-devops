@@ -16,3 +16,4 @@ resources:
   - observability/loki-app.yaml
   - observability/otel-collector-app.yaml
   - observability/grafana-dashboards-app.yaml
+  - observability/alerting-app.yaml

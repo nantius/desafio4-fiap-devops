@@ -1,0 +1,60 @@
+# webhook-adapter — bridges Alertmanager's webhook to GitHub repository_dispatch.
+#
+# Alertmanager POSTs firing alerts to this service's /alert endpoint; the
+# adapter then calls GitHub's dispatch API (authenticated) to trigger the
+# self-heal GitHub Action. Image is built & pushed by CI like the other
+# services (ECR repo: webhook-adapter).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: webhook-adapter
+  namespace: observability
+  labels:
+    app: webhook-adapter
+    app.kubernetes.io/part-of: toggle-master
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: webhook-adapter
+  template:
+    metadata:
+      labels:
+        app: webhook-adapter
+    spec:
+      containers:
+        - name: webhook-adapter
+          image: 670047672777.dkr.ecr.us-east-1.amazonaws.com/webhook-adapter:latest
+          ports:
+            - containerPort: 8080
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          env:
+            - name: GITHUB_REPO
+              value: "nantius/desafio4-fiap-devops"
+            - name: DISPATCH_EVENT
+              value: "self-heal"
+            # PAT with repo/contents:write scope — created at deploy time,
+            # never committed. See the alerting README.
+            - name: GITHUB_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: selfheal-github-token
+                  key: token
+          resources:
+            requests:
+              cpu: "25m"
+              memory: "32Mi"
+            limits:
+              cpu: "100m"
+              memory: "64Mi"
