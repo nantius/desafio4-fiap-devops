@@ -44,10 +44,14 @@ spec:
             key: pagerduty-routing-key
           description: "{{ .CommonAnnotations.summary }}"
           severity: critical
+          # The CRD requires details as an array of {key,value}, not a map.
           details:
-            service: "{{ .CommonLabels.service }}"
-            description: "{{ .CommonAnnotations.description }}"
-            runbook: "{{ .CommonAnnotations.runbook_url }}"
+            - key: service
+              value: "{{ .CommonLabels.service }}"
+            - key: description
+              value: "{{ .CommonAnnotations.description }}"
+            - key: runbook
+              value: "{{ .CommonAnnotations.runbook_url }}"
 
       # ── Discord (ChatOps): Alertmanager's Slack-compatible webhook works with
       #    Discord when the URL has /slack appended. We send a detailed message. ──
