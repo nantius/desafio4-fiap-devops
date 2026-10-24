@@ -22,8 +22,10 @@ on:
 jobs:
   pipeline:
     uses: ./.github/workflows/reusable-go.yml
+    # contents: write is required because the shared reusable workflow contains
+    # the update-gitops job (which no-ops here — gitops_manifests_path="none").
     permissions:
-      contents: read
+      contents: write
     with:
       service: self-healing/webhook-adapter
       ecr_repository: webhook-adapter
