@@ -47,12 +47,17 @@ singleBinary:
     limits:
       cpu: 500m
       memory: 512Mi
+  # No PVC: this EKS cluster has no EBS CSI driver, so dynamic volumes won't
+  # bind. Loki needs a writable /var/loki, so we mount an ephemeral emptyDir
+  # there instead (node disk; fine for a short-lived demo).
   persistence:
-    # Loki needs a writable /var/loki; with persistence off the chart runs a
-    # read-only rootfs and the mkdir fails. A small PVC (EBS gp2 default SC)
-    # gives it writable storage. Keep it small — short-lived demo cluster.
-    enabled: true
-    size: 5Gi
+    enabled: false
+  extraVolumes:
+    - name: loki-data
+      emptyDir: {}
+  extraVolumeMounts:
+    - name: loki-data
+      mountPath: /var/loki
 
 # Disable the scalable-mode components so nothing else gets scheduled.
 backend:
