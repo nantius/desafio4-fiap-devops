@@ -117,6 +117,8 @@ func dispatch(client *http.Client, token, repo, event, service string) error {
 	if err != nil {
 		return err
 	}
+	// #nosec G704 -- not SSRF: the URL is the fixed GitHub API host; only the
+	// repo (operator-set GITHUB_REPO env, never user input) is interpolated.
 	req, err := http.NewRequest(http.MethodPost,
 		"https://api.github.com/repos/"+repo+"/dispatches", bytes.NewReader(b))
 	if err != nil {
@@ -127,7 +129,7 @@ func dispatch(client *http.Client, token, repo, event, service string) error {
 	req.Header.Set("X-GitHub-Api-Version", "2022-11-28")
 	req.Header.Set("Content-Type", "application/json")
 
-	resp, err := client.Do(req)
+	resp, err := client.Do(req) // #nosec G704 -- see above; fixed GitHub API host
 	if err != nil {
 		return err
 	}
