@@ -10,5 +10,6 @@ namespace: observability
 resources:
   - prometheus-rules.yaml
   - alertmanager-config.yaml
-  - ../self-healing/deployment.yaml
-  - ../self-healing/service.yaml
+  # Reference the sibling directory as a kustomize base (allowed), rather than
+  # individual files outside this dir (which kustomize forbids for security).
+  - ../self-healing
