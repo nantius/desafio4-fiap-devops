@@ -314,8 +314,10 @@ jobs:
     name: Update GitOps image tag
     runs-on: ubuntu-latest
     needs: docker
-    # Only after docker succeeded, and never on pull_request (no writes from PRs).
-    if: needs.docker.result == 'success' && github.event_name != 'pull_request'
+    # Only after docker succeeded, never on PRs, and skipped entirely when the
+    # caller opts out with gitops_manifests_path: "none" (e.g. webhook-adapter,
+    # whose manifest tracks :latest and has no sha-tag write-back).
+    if: needs.docker.result == 'success' && github.event_name != 'pull_request' && inputs.gitops_manifests_path != 'none'
     permissions:
       contents: write   # required to push the tag update commit
 
