@@ -111,10 +111,13 @@ func (a *App) fetchFlag(ctx context.Context, flagName string) (*Flag, error) {
 	// span links to the distributed trace, with a 10s upper bound.
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
+	// #nosec G704 -- not SSRF: the host (a.FlagServiceURL) is a fixed internal
+	// service URL injected from the ConfigMap, never user-controlled; only the
+	// flag name is path-appended and the call stays inside the cluster.
 	req, _ := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	req.Header.Set("Authorization", "Bearer "+apiKey)
 
-	resp, err := a.HttpClient.Do(req)
+	resp, err := a.HttpClient.Do(req) // #nosec G704 -- see above; internal, fixed-host request
 	if err != nil {
 		return nil, fmt.Errorf("erro ao chamar flag-service: %w", err)
 	}
@@ -140,10 +143,13 @@ func (a *App) fetchRule(ctx context.Context, flagName string) (*TargetingRule, e
 	apiKey := os.Getenv("SERVICE_API_KEY") // Usa a mesma chave
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
+	// #nosec G704 -- not SSRF: the host (a.TargetingServiceURL) is a fixed
+	// internal service URL from the ConfigMap, never user-controlled; only the
+	// flag name is path-appended and the call stays inside the cluster.
 	req, _ := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	req.Header.Set("Authorization", "Bearer "+apiKey)
 
-	resp, err := a.HttpClient.Do(req)
+	resp, err := a.HttpClient.Do(req) // #nosec G704 -- see above; internal, fixed-host request
 	if err != nil {
 		return nil, fmt.Errorf("erro ao chamar targeting-service: %w", err)
 	}
