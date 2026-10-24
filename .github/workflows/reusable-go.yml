@@ -20,6 +20,11 @@ on:
         required: false
         type: string
         default: "manifests"
+      artifact_suffix:
+        description: "Slash-free suffix for artifact names. Required when 'service' contains a '/' (e.g. self-healing/webhook-adapter -> webhook-adapter)."
+        required: false
+        type: string
+        default: ""
     secrets:
       AWS_ACCOUNT_ID:
         required: true
@@ -80,8 +85,8 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           # Slashes aren't allowed in artifact names; nested service paths
-          # (e.g. self-healing/webhook-adapter) must be flattened.
-          name: coverage-${{ replace(inputs.service, '/', '-') }}
+          # (e.g. self-healing/webhook-adapter) pass artifact_suffix to flatten.
+          name: coverage-${{ inputs.artifact_suffix || inputs.service }}
           path: ${{ inputs.service }}/coverage.out
           if-no-files-found: ignore
 
@@ -183,7 +188,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: gosec-${{ replace(inputs.service, '/', '-') }}
+          name: gosec-${{ inputs.artifact_suffix || inputs.service }}
           path: gosec-report.json
           if-no-files-found: ignore
 
@@ -281,15 +286,15 @@ jobs:
             --severity CRITICAL,HIGH \
             --ignore-unfixed \
             --format sarif \
-            --output trivy-${{ replace(inputs.service, '/', '-') }}.sarif \
+            --output trivy-${{ inputs.artifact_suffix || inputs.service }}.sarif \
             "${{ steps.meta.outputs.image }}"
 
       - name: Upload Trivy artifact
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: trivy-${{ replace(inputs.service, '/', '-') }}
-          path: trivy-${{ replace(inputs.service, '/', '-') }}.sarif
+          name: trivy-${{ inputs.artifact_suffix || inputs.service }}
+          path: trivy-${{ inputs.artifact_suffix || inputs.service }}.sarif
           if-no-files-found: ignore
 
       - name: Push image to ECR

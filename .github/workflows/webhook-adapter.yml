@@ -30,6 +30,8 @@ jobs:
       service: self-healing/webhook-adapter
       ecr_repository: webhook-adapter
       binary_name: webhook-adapter
+      # Flat suffix for artifact names (service path has a slash).
+      artifact_suffix: webhook-adapter
       # No GitOps write-back: the manifest uses :latest.
       gitops_manifests_path: "none"
     secrets:
