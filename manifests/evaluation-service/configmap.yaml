@@ -4,10 +4,10 @@ metadata:
   name: evaluation-service-config
   namespace: evaluation-service
 data:
-  REDIS_URL: "rediss://master.toggle-master-prod-redis.xkabpo.use1.cache.amazonaws.com:6379"
-  AUTH_SERVICE_URL: "http://a1b59bfacc7ce4b3c929f24e0129b6b4-34f7427456c48fde.elb.us-east-1.amazonaws.com/auth"
-  FLAG_SERVICE_URL: "http://a1b59bfacc7ce4b3c929f24e0129b6b4-34f7427456c48fde.elb.us-east-1.amazonaws.com/flag"
-  TARGETING_SERVICE_URL: "http://a1b59bfacc7ce4b3c929f24e0129b6b4-34f7427456c48fde.elb.us-east-1.amazonaws.com/targeting"
+  REDIS_URL: "rediss://master.toggle-master-prod-redis.tubxqh.use1.cache.amazonaws.com:6379"
+  AUTH_SERVICE_URL: "http://a529dee10e1604d509ddf75c6bf21168-33e4506a30c6fc5a.elb.us-east-1.amazonaws.com/auth"
+  FLAG_SERVICE_URL: "http://a529dee10e1604d509ddf75c6bf21168-33e4506a30c6fc5a.elb.us-east-1.amazonaws.com/flag"
+  TARGETING_SERVICE_URL: "http://a529dee10e1604d509ddf75c6bf21168-33e4506a30c6fc5a.elb.us-east-1.amazonaws.com/targeting"
   AWS_REGION: "us-east-1"
   AWS_SQS_URL: "https://sqs.us-east-1.amazonaws.com/670047672777/evaluation_service_queue"
   PORT: "8004"
