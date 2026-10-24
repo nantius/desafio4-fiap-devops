@@ -79,7 +79,9 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: coverage-${{ inputs.service }}
+          # Slashes aren't allowed in artifact names; nested service paths
+          # (e.g. self-healing/webhook-adapter) must be flattened.
+          name: coverage-${{ replace(inputs.service, '/', '-') }}
           path: ${{ inputs.service }}/coverage.out
           if-no-files-found: ignore
 
@@ -181,7 +183,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: gosec-${{ inputs.service }}
+          name: gosec-${{ replace(inputs.service, '/', '-') }}
           path: gosec-report.json
           if-no-files-found: ignore
 
@@ -279,15 +281,15 @@ jobs:
             --severity CRITICAL,HIGH \
             --ignore-unfixed \
             --format sarif \
-            --output trivy-${{ inputs.service }}.sarif \
+            --output trivy-${{ replace(inputs.service, '/', '-') }}.sarif \
             "${{ steps.meta.outputs.image }}"
 
       - name: Upload Trivy artifact
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: trivy-${{ inputs.service }}
-          path: trivy-${{ inputs.service }}.sarif
+          name: trivy-${{ replace(inputs.service, '/', '-') }}
+          path: trivy-${{ replace(inputs.service, '/', '-') }}.sarif
           if-no-files-found: ignore
 
       - name: Push image to ECR
