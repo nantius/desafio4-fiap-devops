@@ -94,14 +94,14 @@
     {
       "type": "timeseries",
       "title": "HTTP request rate by service (req/s)",
-      "description": "Requests per second from OpenTelemetry http.server.request.count (routed via the OTel Collector).",
+      "description": "Requests per second, from the OpenTelemetry HTTP server duration histogram count. Python (Flask) services expose http_server_duration_milliseconds_count; Go services expose http_server_request_duration_seconds_count. Both are summed here.",
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 18 },
       "fieldConfig": { "defaults": { "unit": "reqps" }, "overrides": [] },
       "targets": [
         {
           "refId": "A",
-          "expr": "sum by (service_name) (rate(http_server_request_count_total[5m]))",
+          "expr": "sum by (service_name) (rate(http_server_duration_milliseconds_count[5m])) or sum by (service_name) (rate(http_server_request_duration_seconds_count[5m]))",
           "legendFormat": "{{service_name}}"
         }
       ]
@@ -109,7 +109,6 @@
     {
       "type": "timeseries",
       "title": "HTTP 5xx error rate by service (%)",
-      "description": "Percentage of responses with a 5xx status. This is the signal behind the auth-service alert.",
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 18 },
       "fieldConfig": {
@@ -125,10 +124,11 @@
         },
         "overrides": []
       },
+      "description": "Percentage of responses with a 5xx status. This is the signal behind the auth-service alert. Python services label status as http_status_code; Go services use http_response_status_code — both are covered.",
       "targets": [
         {
           "refId": "A",
-          "expr": "100 * sum by (service_name) (rate(http_server_request_count_total{http_status_code=~\"5..\"}[5m])) / clamp_min(sum by (service_name) (rate(http_server_request_count_total[5m])), 1)",
+          "expr": "100 * (sum by (service_name) (rate(http_server_duration_milliseconds_count{http_status_code=~\"5..\"}[5m])) or sum by (service_name) (rate(http_server_request_duration_seconds_count{http_response_status_code=~\"5..\"}[5m]))) / clamp_min((sum by (service_name) (rate(http_server_duration_milliseconds_count[5m])) or sum by (service_name) (rate(http_server_request_duration_seconds_count[5m]))), 1)",
           "legendFormat": "{{service_name}}"
         }
       ]
