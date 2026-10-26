@@ -1,0 +1,26 @@
+# Pin the Loki datasource to a FIXED uid ("loki") so the ToggleMaster
+# dashboard's logs panel (which references datasource uid "loki") resolves.
+#
+# The Loki Helm chart's auto-created datasource gets a random uid, which the
+# dashboard panel can't target. This ConfigMap is picked up by the
+# kube-prometheus-stack Grafana sidecar (label grafana_datasource=1) and
+# provisions Loki with a stable uid pointing at the loki-gateway service.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-loki-datasource
+  namespace: observability
+  labels:
+    grafana_datasource: "1"
+data:
+  loki-datasource.yaml: |
+    apiVersion: 1
+    datasources:
+      - name: Loki
+        type: loki
+        uid: loki
+        access: proxy
+        url: http://loki-gateway.observability.svc.cluster.local
+        isDefault: false
+        jsonData:
+          maxLines: 1000

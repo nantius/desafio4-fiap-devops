@@ -6,6 +6,10 @@ namespace: observability
 # Turn the dashboard JSON into a ConfigMap that the Grafana sidecar imports.
 # The grafana_dashboard=1 label is what the sidecar watches for; the
 # grafana_folder annotation files it under a named folder in the UI.
+# Pin the Loki datasource uid to "loki" so the dashboard logs panel resolves.
+resources:
+  - loki-datasource.yaml
+
 configMapGenerator:
   - name: toggle-master-dashboard
     files:
