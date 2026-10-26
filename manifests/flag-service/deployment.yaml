@@ -45,6 +45,11 @@ spec:
               value: "flag-service"
             - name: OTEL_RESOURCE_ATTRIBUTES
               value: "deployment.environment=prod"
+            # Route application logs through OTLP → OTel Collector → Loki.
+            - name: OTEL_LOGS_EXPORTER
+              value: "otlp"
+            - name: OTEL_PYTHON_LOGGING_AUTO_INSTRUMENTATION_ENABLED
+              value: "true"
             - name: DB_USER
               valueFrom:
                 secretKeyRef:
