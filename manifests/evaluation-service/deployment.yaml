@@ -18,7 +18,7 @@ spec:
       serviceAccountName: evaluation-service-sa   
       containers:
         - name: evaluation-service
-          image: 272620029646.dkr.ecr.us-east-1.amazonaws.com/evaluation-service:sha-3e8935e
+          image: 272620029646.dkr.ecr.us-east-1.amazonaws.com/evaluation-service:sha-584f7ad
           ports:
             - containerPort: 8004
           livenessProbe:
