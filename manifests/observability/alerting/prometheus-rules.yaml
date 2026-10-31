@@ -1,8 +1,10 @@
 # PrometheusRule — the "smart alert" for Fase 4 req. 4.
 #
 # Fires when the auth-service HTTP 5xx error rate exceeds 5% of its traffic
-# over a 5-minute window. The metric (http_server_request_count) comes from the
-# OpenTelemetry instrumentation, routed into Prometheus by the OTel Collector's
+# over a 5-minute window. auth-service is Go (otelhttp), so its request count
+# is the http_server_request_duration_seconds_count histogram counter, with the
+# status in http_response_status_code. It comes from the OpenTelemetry
+# instrumentation, routed into Prometheus by the OTel Collector's
 # prometheusremotewrite exporter.
 #
 # kube-prometheus-stack's Prometheus is configured with
@@ -22,10 +24,12 @@ spec:
       rules:
         - alert: AuthServiceHigh5xxRate
           # 5xx rate as a percentage of all auth-service requests.
-          # clamp_min avoids divide-by-zero when there's no traffic.
+          # "> 0" on the denominator avoids divide-by-zero with no traffic
+          # without distorting the ratio (traffic here is < 1 req/s, so the
+          # old clamp_min(..., 1) would have under-reported the percentage).
           expr: >
-            100 * sum(rate(http_server_request_count_total{service_name="auth-service", http_status_code=~"5.."}[5m]))
-            / clamp_min(sum(rate(http_server_request_count_total{service_name="auth-service"}[5m])), 1)
+            100 * sum(rate(http_server_request_duration_seconds_count{service_name="auth-service", http_response_status_code=~"5.."}[5m]))
+            / (sum(rate(http_server_request_duration_seconds_count{service_name="auth-service"}[5m])) > 0)
             > 5
           for: 1m
           labels:
