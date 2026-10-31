@@ -96,6 +96,9 @@ func main() {
 	// Eles são protegidos pelo middleware de autenticação
 	mux.Handle("/admin/keys", app.masterKeyAuthMiddleware(http.HandlerFunc(app.createKeyHandler)))
 
+	// Test-only: always returns 500 to trigger the 5xx alert. Requires MASTER_KEY.
+	mux.Handle("/admin/test-error", app.masterKeyAuthMiddleware(http.HandlerFunc(app.testErrorHandler)))
+
 	// Wrap the mux so every request is traced and HTTP server metrics are
 	// recorded, then exported via OTLP to the OTel Collector.
 	handler := otelHandler(mux)

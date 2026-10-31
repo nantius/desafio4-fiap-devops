@@ -27,6 +27,16 @@ func (a *App) healthHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// testErrorHandler always responds 500. It exists only to exercise the
+// alerting chain (5xx rate > 5% → Prometheus → Alertmanager → PagerDuty,
+// Discord and self-heal) with real errors recorded by the OTel HTTP metrics.
+// It is mounted behind masterKeyAuthMiddleware, so callers without the
+// MASTER_KEY get 403 and cannot trigger pages.
+func (a *App) testErrorHandler(w http.ResponseWriter, r *http.Request) {
+	log.Printf("testErrorHandler: returning simulated 500 (alerting test)")
+	http.Error(w, "Erro simulado para teste de alertas", http.StatusInternalServerError)
+}
+
 // validateKeyHandler verifica se uma chave de API (enviada via Header) é válida
 func (a *App) validateKeyHandler(w http.ResponseWriter, r *http.Request) {
 	// Extrai a chave do header "Authorization: Bearer <key>"
