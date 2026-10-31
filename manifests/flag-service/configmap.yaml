@@ -4,8 +4,8 @@ metadata:
   name: flag-service-config
   namespace: flag-service
 data:
-  AUTH_SERVICE_URL: "http://a529dee10e1604d509ddf75c6bf21168-33e4506a30c6fc5a.elb.us-east-1.amazonaws.com/auth"
-  DB_HOST: "toggle-master-prod-flag-service.cf80uq6syo8j.us-east-1.rds.amazonaws.com"
+  AUTH_SERVICE_URL: "http://aeb66c2f7892d4887a88bc95e58ca8ea-7dff18fcec820186.elb.us-east-1.amazonaws.com/auth"
+  DB_HOST: "toggle-master-prod-flag-service.cbbfeb3xmzbp.us-east-1.rds.amazonaws.com"
   DB_PORT: "5432"
   DB_NAME: "flag_db"
   SSL_MODE: "require"
