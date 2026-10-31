@@ -114,6 +114,13 @@ config:
       tls:
         insecure: true
 
+  # ── Datadog connector: computes APM trace metrics (hits, errors, latency)
+  # from spans. Since collector-contrib v0.95 the Datadog exporter no longer
+  # does this itself, and without these stats Datadog shows individual spans
+  # but leaves the Flow Map / service map and service RED metrics empty.
+  connectors:
+    datadog/connector: {}
+
   extensions:
     health_check:
       endpoint: 0.0.0.0:13133
@@ -124,6 +131,14 @@ config:
       traces:
         receivers: [otlp]
         processors: [k8sattributes, resourcedetection, batch]
+        # Spans go to Datadog AND into the connector, which turns them into
+        # trace metrics for the metrics/datadog pipeline below.
+        exporters: [datadog/connector, datadog]
+      # Trace metrics produced by the connector → Datadog only (kept out of
+      # Prometheus so they don't add series there).
+      metrics/datadog:
+        receivers: [datadog/connector]
+        processors: [batch]
         exporters: [datadog]
       metrics:
         receivers: [otlp]
