@@ -35,6 +35,11 @@ spec:
           labels:
             severity: critical
             service: auth-service
+            # Required for routing: the prometheus-operator scopes every
+            # AlertmanagerConfig route to alerts with namespace=<its namespace>.
+            # sum() drops all labels, so without this the alert falls through
+            # to the "null" receiver and never pages PagerDuty/Discord/self-heal.
+            namespace: observability
           annotations:
             summary: "auth-service 5xx error rate above 5%"
             description: >
