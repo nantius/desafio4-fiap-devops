@@ -128,7 +128,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "100 * (sum by (service_name) (rate(http_server_duration_milliseconds_count{http_status_code=~\"5..\"}[5m])) or sum by (service_name) (rate(http_server_request_duration_seconds_count{http_response_status_code=~\"5..\"}[5m]))) / clamp_min((sum by (service_name) (rate(http_server_duration_milliseconds_count[5m])) or sum by (service_name) (rate(http_server_request_duration_seconds_count[5m]))), 1)",
+          "expr": "100 * ((sum by (service_name) (rate(http_server_duration_milliseconds_count{http_status_code=~\"5..\"}[5m])) or sum by (service_name) (rate(http_server_request_duration_seconds_count{http_response_status_code=~\"5..\"}[5m]))) or 0 * (sum by (service_name) (rate(http_server_duration_milliseconds_count[5m])) or sum by (service_name) (rate(http_server_request_duration_seconds_count[5m])))) / ((sum by (service_name) (rate(http_server_duration_milliseconds_count[5m])) or sum by (service_name) (rate(http_server_request_duration_seconds_count[5m]))) > 0)",
           "legendFormat": "{{service_name}}"
         }
       ]
