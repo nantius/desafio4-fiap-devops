@@ -16,7 +16,7 @@ From the AWS Academy portal → **AWS Details** → copy the CLI block into
 `~/.aws/credentials` (profile `[default]`). Then verify:
 
 ```bash
-aws sts get-caller-identity --region us-east-1   # expect Account 670047672777
+aws sts get-caller-identity --region us-east-1   # expect Account 272620029646
 ```
 
 ---
@@ -71,7 +71,7 @@ kubectl -n observability create secret generic selfheal-github-token \
 
 Repo → Settings → Secrets and variables → Actions. Set/refresh:
 
-- `AWS_ACCOUNT_ID` = `670047672777`
+- `AWS_ACCOUNT_ID` = `272620029646`
 - `AWS_REGION` = `us-east-1`
 - `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_SESSION_TOKEN` = current Lab creds
 - `EKS_CLUSTER_NAME` = `toggle`

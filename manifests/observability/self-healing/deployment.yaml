@@ -24,7 +24,7 @@ spec:
     spec:
       containers:
         - name: webhook-adapter
-          image: 670047672777.dkr.ecr.us-east-1.amazonaws.com/webhook-adapter:latest
+          image: 272620029646.dkr.ecr.us-east-1.amazonaws.com/webhook-adapter:latest
           ports:
             - containerPort: 8080
           livenessProbe:
